@@ -578,10 +578,13 @@ class GAABenchmark:
                 result += coeff * variant_vars[:, var_idx]
 
         # Interaction terms
+        # Precompute variable name to index mapping for O(1) lookups
+        var_index = {name: i for i, name in enumerate(var_names)}
+        
         for interaction_key, coeff in coeffs["interaction"].items():
             var1_name, var2_name = interaction_key.split(',')
-            var1_idx = var_names.index(var1_name)
-            var2_idx = var_names.index(var2_name)
+            var1_idx = var_index[var1_name]
+            var2_idx = var_index[var2_name]
             result += coeff * variant_vars[:, var1_idx] * variant_vars[:, var2_idx]
 
         # Quadratic terms
@@ -762,7 +765,7 @@ if __name__ == "__main__":
     print("Objectives:")
     for i, (name, value) in enumerate(zip(objective_names, objectives[0])):
         print(f"  {i + 1}. {name}: {value:.2f}")
-    print(f"Max constraint and corresponding ID: {np.max(constraints[0, :6])}, ID: {np.argmax(constraints[0, :6])}")
+    print(f"Max constraint and corresponding ID: {np.max(constraints[0])}, ID: {np.argmax(constraints[0])}")
 
     # Batch evaluation
     print("\n" + "=" * 70)    
