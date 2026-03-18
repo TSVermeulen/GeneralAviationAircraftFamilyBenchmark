@@ -94,6 +94,20 @@ __status__ = "Release"
 # Module-level cache for RSM coefficients (loaded once, reused for all optimisations)
 _COEFFICIENT_CACHE: Dict[str, Dict[str, Any]] = {}
 
+# Design variable scaling parameters (shared across all scaling methods)
+# Each tuple: (parameter_name, center, scale)
+SCALING_PARAMS = [
+    ("CSPD", 0.36, 0.12),
+    ("AR", 9, 2),
+    ("SWEEP", 3, 3),
+    ("DPROP", 5.734, 0.234),
+    ("WINGLD", 22, 3),
+    ("AF", 97.5, 12.5),
+    ("SEATW", 17, 3),
+    ("ELODT", 3.375, 0.375),
+    ("TAPER", 0.73, 0.27),
+]
+
 
 # Module Functions
 
@@ -186,7 +200,6 @@ class AircraftVariant:
         self.design_vars_raw = design_vars
         self.scaled_vars = self._scale_design_variables(design_vars)
         self.response_vars: Dict[str, float] = {}
-        self.constraint_violations = {}
 
 
     @staticmethod
@@ -202,20 +215,8 @@ class AircraftVariant:
             Dictionary of scaled design variables
         """
 
-        scaling_params = [
-            ("CSPD", 0.36, 0.12),
-            ("AR", 9, 2),
-            ("SWEEP", 3, 3),
-            ("DPROP", 5.734, 0.234),
-            ("WINGLD", 22, 3),
-            ("AF", 97.5, 12.5),
-            ("SEATW", 17, 3),
-            ("ELODT", 3.375, 0.375),
-            ("TAPER", 0.73, 0.27),
-        ]
-
         scaled: Dict[str, float] = {}
-        for i, (name, center, scale) in enumerate(scaling_params):
+        for i, (name, center, scale) in enumerate(SCALING_PARAMS):
             scaled[name] = float((raw_vars[i] - center) / scale)
 
         return scaled
@@ -426,37 +427,6 @@ class GAABenchmark:
         (0.46, 1),  # TAPER6
     ]
 
-    # Design goals for each variant
-    DESIGN_GOALS = {
-        "2-seater": {
-            "WEMP": 1900,
-            "DOC": 60,
-            "WFUEL": 450,
-            "PURCH": 41000,
-            "RANGE": 2500,
-            "LDMAX": 17,
-            "VCMAX": 200,
-        },
-        "4-seater": {
-            "WEMP": 1950,
-            "DOC": 60,
-            "WFUEL": 400,
-            "PURCH": 42000,
-            "RANGE": 2500,
-            "LDMAX": 17,
-            "VCMAX": 200,
-        },
-        "6-seater": {
-            "WEMP": 2000,
-            "DOC": 60,
-            "WFUEL": 350,
-            "PURCH": 43000,
-            "RANGE": 2500,
-            "LDMAX": 17,
-            "VCMAX": 200,
-        },
-    }
-
     # Constraint limits
     CONSTRAINT_LIMITS = {
         "NOISE": 75,
@@ -530,23 +500,11 @@ class GAABenchmark:
                 Scaled design variables
         """
 
-        scaling_params = [
-            (0.36, 0.12),
-            (9, 2),
-            (3, 3),
-            (5.734, 0.234),
-            (22, 3),
-            (97.5, 12.5),
-            (17, 3),
-            (3.375, 0.375),
-            (0.73, 0.27),
-        ]
-
         scaled = design_vectors.copy()
 
         # Apply scaling to each design variable (repeats for all 3 variants)
         for variant_idx in range(3):
-            for var_idx, (center, scale) in enumerate(scaling_params):
+            for var_idx, (_, center, scale) in enumerate(SCALING_PARAMS):
                 col_idx = variant_idx * 9 + var_idx
                 scaled[:, col_idx] = (design_vectors[:, col_idx] - center) / scale
 
