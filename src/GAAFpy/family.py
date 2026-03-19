@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-gaaf.py
+family.py
 =================
 
 Description
 -----------
-General Aviation Aircraft (GAA) Benchmark Problem Implementation in Python
+Implementation of the General Aviation Aircraft (GAA) Family Benchmark Problem 
+in Python
 
 This module provides a class-based implementation of the General Aviation Aircraft
 (GAA) family design problem, suitable for single- or multi-objective optimisation.
@@ -15,11 +16,8 @@ with product platform commonality constraints.
 
 Classes
 -------
-AircraftVariant
-    Represents an individual aircraft variant, handling design variable scaling
-    and response variable calculations using response surface models (RSMs).
 GAABenchmark
-    Main class representing the GAA family design problem, handling vectorised
+    Class representing the GAA family design problem, handling vectorised
     evaluation of objectives and constraints for multiple solutions.
 
 Examples
@@ -68,323 +66,26 @@ Versioning
 ----------
 @author: T.S. Vermeulen
 @email: T.S.Vermeulen@tudelft.nl
-@version: 1.0
-@date (dd-mm-yyyy): 18-03-2026
+@version: 1.1
+@date (dd-mm-yyyy): 19-03-2026
 
 Changelog:
 - V1.0: Initial version. Tested to function for both single solution and
         batch evaluations. Single solution test shows matching output with MOEA
         Java implementation.
+- V1.1: Cleaned up code, split out modules. Prepared for package release.
 """
 
-# Standard library imports
-import json
-import os
-from typing import Tuple, Dict, Any, ClassVar, Union, List
+# Import standard libraries
+from typing import List, Tuple, ClassVar, Dict, Any
 
-# 3rd party imports
+# Import 3rd party libraries
 import numpy as np
 
-# Module Constants
-__author__ = "Thomas Stephan Vermeulen"
-__copyright__ = "Copyright 2026, all rights reserved"
-__status__ = "Release"
-
-
-# Module-level cache for RSM coefficients (loaded once, reused for all optimisations)
-_COEFFICIENT_CACHE: Dict[str, Dict[str, Any]] = {}
-
-# Design variable scaling parameters (shared across all scaling methods)
-# Each tuple: (parameter_name, center, scale)
-SCALING_PARAMS = [
-    ("CSPD", 0.36, 0.12),
-    ("AR", 9, 2),
-    ("SWEEP", 3, 3),
-    ("DPROP", 5.734, 0.234),
-    ("WINGLD", 22, 3),
-    ("AF", 97.5, 12.5),
-    ("SEATW", 17, 3),
-    ("ELODT", 3.375, 0.375),
-    ("TAPER", 0.73, 0.27),
-]
-
-
-# Module Functions
-
-def _load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
-    """
-    Load RSM coefficients from external JSON file.
-    Results are cached module-wide to avoid repeated file I/O during
-    optimisation.
-
-    Returns:
-        Dictionary of coefficients organised by variant and response variable.
-
-    Raises:
-        FileNotFoundError: If coefficients file cannot be found in any location
-        json.JSONDecodeError: If coefficients file is invalid JSON
-    """
-
-    global _COEFFICIENT_CACHE
-
-    if _COEFFICIENT_CACHE:
-        return _COEFFICIENT_CACHE
-
-    # List of candidate locations to search
-    candidates = []
-
-    # Construct module and folder paths
-    module_dir = os.path.dirname(os.path.abspath(__file__))
-    parent_dir = os.path.dirname(module_dir)
-
-    # data/ relative to parent directory (project root/data/)
-    candidates.append(os.path.join(parent_dir, "GAAFpy", "rsm_coefficients.json"))
-
-    # relative to current working directory
-    candidates.append(os.path.join(os.getcwd(), "rsm_coefficients.json"))
-    candidates.append(r"rsm_coefficients.json")  # Just in case
-
-    # Try each candidate location
-    for coeffs_file in candidates:
-        if os.path.exists(coeffs_file):
-            try:
-                with open(coeffs_file, 'r') as f:
-                    _COEFFICIENT_CACHE = json.load(f)
-                    return _COEFFICIENT_CACHE
-            except json.JSONDecodeError as e:
-                raise json.JSONDecodeError(
-                    f"Invalid JSON in {coeffs_file}: {e.msg}",
-                    e.doc,
-                    e.pos
-                ) from e
-
-    # If we get here, file was not found in any location
-    error_msg = (
-        "RSM coefficients file 'rsm_coefficients.json' not found.\n\n"
-        "Searched in the following locations:\n"
-    )
-    for i, path in enumerate(candidates, 1):
-        error_msg += f"  {i}. {path}\n"
-    error_msg += (
-        "\nEnsure the file exists in one of these locations,\n"
-        "or run the script from the project root directory."
-    )
-    raise FileNotFoundError(error_msg)
-
+# Import local modules
+from .utils import SCALING_PARAMS, load_rsm_coefficients
 
 # Concrete Classes
-
-class AircraftVariant:
-    """
-    Class-based representation of an individual aircraft variant within the GAA
-    family design problem. Either represents a 2-seater, 4-seater, or 6-seater
-    variant.
-    """
-
-    def __init__(self, variant_name: str,
-                 design_vars: np.ndarray,
-                 variant_index: int) -> None:
-        """
-        Initialise an aircraft variant.
-
-        Args:
-            variant_name: str,
-                Name of the variant (e.g., "2-seater", "4-seater", "6-seater")
-            design_vars: np.ndarray,
-                Array of 9 design variables (raw/unscaled values)
-            variant_index: int,
-                Index for the variant (0 for 2-seater, 1 for 4-seater, 2 for 6-seater)
-        """
-
-        self.name = variant_name
-        self.variant_index = variant_index
-        self.design_vars_raw = design_vars
-        self.scaled_vars = self._scale_design_variables(design_vars)
-        self.response_vars: Dict[str, float] = {}
-
-
-    @staticmethod
-    def _scale_design_variables(raw_vars: np.ndarray) -> Dict[str, float]:
-        """
-        Scale raw design variables to normalised space.
-
-        Args:
-            raw_vars: np.ndarray
-                Raw design variables
-
-        Returns:
-            Dictionary of scaled design variables
-        """
-
-        scaled: Dict[str, float] = {}
-        for i, (name, center, scale) in enumerate(SCALING_PARAMS):
-            scaled[name] = float((raw_vars[i] - center) / scale)
-
-        return scaled
-
-
-    def calculate_response_variables(self) -> None:
-        """
-        Calculate all response variables using response surface models.
-        Writes all response variables to self.response_vars dictionary.
-        """
-
-        v = self.scaled_vars
-
-        # Extract scaled variables for brevity
-        cspd = v["CSPD"]
-        ar = v["AR"]
-        sweep = v["SWEEP"]
-        dprop = v["DPROP"]
-        wingld = v["WINGLD"]
-        af = v["AF"]
-        seatw = v["SEATW"]
-        elodt = v["ELODT"]
-        taper = v["TAPER"]
-
-        # Get variant-specific coefficients
-        coeffs = self._get_response_surface_coefficients()
-
-        # Calculate NOISE
-        self.response_vars["NOISE"] = self._evaluate_rsm(
-            coeffs["NOISE"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
-
-        # Calculate WEMP (Empty Weight)
-        self.response_vars["WEMP"] = self._evaluate_rsm(
-            coeffs["WEMP"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
-
-        # Calculate DOC (Direct Operating Cost)
-        self.response_vars["DOC"] = self._evaluate_rsm(
-            coeffs["DOC"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
-
-        # Calculate ROUGH (Ride Roughness)
-        self.response_vars["ROUGH"] = self._evaluate_rsm(
-            coeffs["ROUGH"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
-
-        # Calculate WFUEL (Fuel Weight)
-        self.response_vars["WFUEL"] = self._evaluate_rsm(
-            coeffs["WFUEL"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
-
-        # Calculate PURCH (Purchase Cost)
-        self.response_vars["PURCH"] = self._evaluate_rsm(
-            coeffs["PURCH"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
-
-        # Calculate RANGE
-        self.response_vars["RANGE"] = self._evaluate_rsm(
-            coeffs["RANGE"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
-
-        # Calculate LDMAX (Maximum Lift-to-Drag Ratio)
-        self.response_vars["LDMAX"] = self._evaluate_rsm(
-            coeffs["LDMAX"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
-
-        # Calculate VCMAX (Maximum Cruise Speed)
-        self.response_vars["VCMAX"] = self._evaluate_rsm(
-            coeffs["VCMAX"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
-
-
-    def _get_response_surface_coefficients(self) -> dict:
-        """
-        Get response surface model coefficients for this variant from cached data.
-
-        Returns:
-            Dictionary with RSM coefficients for each response variable
-        """
-
-        variant_names = ["2-seater", "4-seater", "6-seater"]
-        variant_key = variant_names[self.variant_index]
-
-        # Load coefficients from external file (cached at module level)
-        all_coefficients = _load_rsm_coefficients()
-
-        if variant_key not in all_coefficients:
-            raise ValueError(
-                f"Coefficients not found for variant '{variant_key}'. "
-                f"Available variants: {list(all_coefficients.keys())}"
-            )
-
-        return all_coefficients[variant_key]
-
-
-    @staticmethod
-    def _evaluate_rsm(coeffs: Dict[str, Any],
-                      cspd: float,
-                      ar: float,
-                      sweep: float,
-                      dprop: float,
-                      wingld: float,
-                      af: float,
-                      seatw: float,
-                      elodt: float,
-                      taper: float) -> float:
-        """
-        Evaluate response surface model polynomial.
-
-        Args:
-            coeffs: Dict[str, Any],
-                Coefficient dictionary with linear, interaction,
-                and quadratic terms.
-            cspd: float,
-                Scaled cruise speed design variable.
-            ar: float,
-                Scaled aspect ratio design variable.
-            sweep: float,
-                Scaled quarter-chord wing sweep design variable.
-            dprop: float,
-                Scaled propeller diameter design variable.
-            wingld: float,
-                Scaled wing loading design variable.
-            af: float,
-                Scaled propeller activity factor design variable.
-            seatw: float,
-                Scaled seat width design variable.
-            elodt: float,
-                Scaled tail cone elongation design variable.
-            taper: float,
-                Scaled wing taper ratio design variable.
-
-        Returns:
-            Response variable value.
-        """
-
-        var_dict = {
-            "CSPD": cspd,
-            "AR": ar,
-            "SWEEP": sweep,
-            "DPROP": dprop,
-            "WINGLD": wingld,
-            "AF": af,
-            "SEATW": seatw,
-            "ELODT": elodt,
-            "TAPER": taper,
-        }
-
-        result = coeffs["constant"]
-
-        # Linear terms
-        for var_name, coeff in coeffs["linear"].items():
-            result += coeff * var_dict[var_name]
-
-        # Interaction terms
-        # Assumes comma-separated string keys (from JSON)
-        for key, coeff in coeffs["interaction"].items():
-            var1, var2 = key.split(',')
-            result += coeff * var_dict[var1] * var_dict[var2]
-
-        # Quadratic terms
-        for var_name, coeff in coeffs["quadratic"].items():
-            result += coeff * var_dict[var_name] ** 2
-
-        return result
-
 
 class GAABenchmark:
     """
@@ -447,6 +148,8 @@ class GAABenchmark:
             design_variables: np.ndarray
                 - Array of shape (N, 27), where N is the number of solutions
         """
+
+        design_variables = np.asarray(design_variables, dtype=float)
 
         # Convert 1D to 2D if a single solution is requested
         if design_variables.ndim == 1:
@@ -525,7 +228,7 @@ class GAABenchmark:
             Tuple of 3 np.ndarrays (one per variant), each shape (N, 9)
         """
 
-        coeffs_data = _load_rsm_coefficients()
+        coeffs_data = load_rsm_coefficients()
         variant_names = ["2-seater", "4-seater", "6-seater"]
         response_names = ["NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "PURCH", "RANGE", "LDMAX", "VCMAX"]
 
@@ -728,14 +431,9 @@ class GAABenchmark:
             constraints[:, constraint_idx] = np.maximum(0, range_cv)
             constraint_idx += 1
 
-        # Compute summed constraint violation to remain in-line with MOEA Java implementation
-        summed_CV = (constraints[:, constraint_idx - 7] +  # NOISE
-            constraints[:, constraint_idx - 6] +  # WEMP
-            constraints[:, constraint_idx - 5] +  # DOC
-            constraints[:, constraint_idx - 4] +  # ROUGH
-            constraints[:, constraint_idx - 3] +  # WFUEL
-            constraints[:, constraint_idx - 1])    # RANGE
-            
+        # Compute summed constraint violation to remain in-line with MOEA Java 
+        # implementation
+        summed_CV = np.sum(constraints, axis=1) 
 
         return constraints, summed_CV
 
@@ -814,5 +512,5 @@ if __name__ == "__main__":
     print(f"  10 solutions: {single_time:.4f}s")
     print(f"  Estimated for {n_solutions}: {estimated_sequential:.4f}s")
     print(f"  Vectorised for {n_solutions}: {vectorised_time:.4f}s")
-    print(f"  Speedup: {estimated_sequential / vectorised_time:.1f}x")
+    print(f"  Speedup: {estimated_sequential / vectorised_time if vectorised_time > 0 else 0:.1f}x")
     print("\n" + "=" * 70)

@@ -60,15 +60,25 @@ __status__ = "Release"
 
 
 def add_src_to_path():
-    """Add src directory to Python path to import gaa module."""
-    script_dir = Path(__file__).parent.parent
-    src_dir = script_dir / "src" / "GAAFpy"
-    if str(src_dir) not in sys.path:
-        sys.path.insert(0, str(src_dir))
+    """
+    Add the project 'src' directory to sys.path so top-level package 
+    'GAAFPy' is importable.
+    This keeps imports identical to how they work after installation.
+    """
+    
+    # This file is in: project_root/verification_validation/gaa_verifier_validator.py
+    project_root = Path(__file__).resolve().parents[1]  # go up to project root
+    src_dir = project_root / "src"
+    if src_dir.is_dir():
+        src_str = str(src_dir)
+        if src_str not in sys.path:
+            sys.path.insert(0, src_str)
+
 
 # Import GAA Benchmark after path is configured
 add_src_to_path()
-from gaaf import GAABenchmark # type: ignore
+from GAAFpy.family import GAABenchmark
+
 
 
 # Constants
