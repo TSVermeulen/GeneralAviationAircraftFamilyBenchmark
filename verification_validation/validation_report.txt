@@ -1,0 +1,68 @@
+================================================================================
+GAA BENCHMARK VERIFICATION/VALIDATION REPORT
+================================================================================
+
+SUMMARY
+--------------------------------------------------------------------------------
+Total solutions evaluated: 100
+CSV file: C:\Users\thomasvermeule\OneDrive - Delft University of Technology\Documents\Family Design\GAABenchmarkProblem-Python\GeneralAviationAircraftFamilyBenchmark\verification_validation\MOEA-GAA-output.csv
+
+OBJECTIVES VALIDATION
+--------------------------------------------------------------------------------
+Tolerance threshold: 5e-06
+Status: PASS
+Max relative difference: 3.33e-06
+Mean relative difference: 1.79e-07
+Std deviation of differences: 3.69e-07
+
+CONSTRAINTS VALIDATION
+--------------------------------------------------------------------------------
+Tolerance threshold: 5e-06
+Status: PASS
+Max relative difference: 0.00e+00
+Mean relative difference: 0.00e+00
+Std deviation of differences: 0.00e+00
+
+OBJECTIVES - DETAILED STATISTICS
+--------------------------------------------------------------------------------
+OK max_NOISE    | Max: 3.21e-08 | Mean: 1.24e-08 | Violations: 0/100
+OK max_WEMP     | Max: 2.79e-08 | Mean: 7.90e-09 | Violations: 0/100
+OK max_DOC      | Max: 2.09e-06 | Mean: 9.32e-07 | Violations: 0/100
+OK max_ROUGH    | Max: 2.68e-07 | Mean: 1.35e-07 | Violations: 0/100
+OK max_WFUEL    | Max: 1.33e-07 | Mean: 3.86e-08 | Violations: 0/100
+OK max_PURCH    | Max: 4.08e-08 | Mean: 1.20e-08 | Violations: 0/100
+OK min_RANGE    | Max: 3.90e-07 | Mean: 1.25e-07 | Violations: 0/100
+OK min_LDMAX    | Max: 1.91e-07 | Mean: 9.44e-08 | Violations: 0/100
+OK min_VCMAX    | Max: 3.05e-08 | Mean: 1.10e-08 | Violations: 0/100
+OK PFPF         | Max: 3.33e-06 | Mean: 4.24e-07 | Violations: 0/100
+
+CONSTRAINTS - DETAILED STATISTICS
+--------------------------------------------------------------------------------
+OK Constr 1 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr 2 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr 3 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr 4 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr 5 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr 6 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr 7 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr 8 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr 9 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr10 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr11 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr12 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr13 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr14 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr15 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr16 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr17 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr18 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+
+SOLUTIONS WITH LARGEST ERRORS
+--------------------------------------------------------------------------------
+Top 5 solutions with largest objective errors:
+
+Top 5 solutions with largest constraint errors:
+
+================================================================================
+END OF REPORT
+================================================================================
