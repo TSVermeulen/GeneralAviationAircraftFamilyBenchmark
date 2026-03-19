@@ -11,16 +11,16 @@ OBJECTIVES VALIDATION
 --------------------------------------------------------------------------------
 Tolerance threshold: 5e-06
 Status: PASS
-Max absolute difference: 3.33e-06
-Mean absolute difference: 1.79e-07
+Max relative difference: 3.33e-06
+Mean relative difference: 1.79e-07
 Std deviation of differences: 3.69e-07
 
 CONSTRAINTS VALIDATION
 --------------------------------------------------------------------------------
 Tolerance threshold: 5e-06
 Status: PASS
-Max absolute difference: 0.00e+00
-Mean absolute difference: 0.00e+00
+Max relative difference: 0.00e+00
+Mean relative difference: 0.00e+00
 Std deviation of differences: 0.00e+00
 
 OBJECTIVES - DETAILED STATISTICS

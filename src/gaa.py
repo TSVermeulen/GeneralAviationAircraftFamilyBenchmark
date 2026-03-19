@@ -467,7 +467,7 @@ class GAABenchmark:
         self.design_variables = design_variables
 
 
-    def evaluate(self) -> Tuple[np.ndarray, np.ndarray]:
+    def evaluate(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Evaluate the GAA problem for design solution(s).
 
@@ -475,15 +475,15 @@ class GAABenchmark:
             Tuple of (objectives, constraints):
             - objectives: np.ndarray, shape (N, 10) — 10 objectives per solution
             - constraints: np.ndarray, shape (N, 18) — 18 constraint violations per solution
+            - summed_CV: np.ndarray, shape (N,) — sum of constraint violations per solution
         """
 
         # Vectorised evaluation pipeline
         scaled_vars = self._scale_variables(self.design_variables)
         response_vars = self._get_response_variables(scaled_vars)
         objectives = self._calculate_objectives(response_vars, scaled_vars)
-        constraints = self._calculate_constraints(response_vars)
-
-        return objectives, constraints
+        constraints, summed_CV = self._calculate_constraints(response_vars)
+        return objectives, constraints, summed_CV
 
 
     @staticmethod
@@ -670,7 +670,7 @@ class GAABenchmark:
 
 
     def _calculate_constraints(self,
-                               response_vars_all: Tuple[np.ndarray, np.ndarray, np.ndarray]) -> np.ndarray:
+                               response_vars_all: Tuple[np.ndarray, np.ndarray, np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
         """
         Vectorised constraint violation calculation for all solutions.
 
@@ -678,7 +678,7 @@ class GAABenchmark:
             response_vars_all: Tuple of 3 arrays, each (N, 9)
 
         Returns:
-            np.ndarray, shape (N, 18)
+            Tuple of np.ndarray, shape (N, 18) and np.ndarray shape (N,)
         """
 
         constraints = np.zeros((self.design_variables.shape[0], 18))
@@ -727,7 +727,16 @@ class GAABenchmark:
             constraints[:, constraint_idx] = np.maximum(0, range_cv)
             constraint_idx += 1
 
-        return constraints
+        # Compute summed constraint violation to remain in-line with MOEA Java implementation
+        summed_CV = (constraints[:, constraint_idx - 7] +  # NOISE
+            constraints[:, constraint_idx - 6] +  # WEMP
+            constraints[:, constraint_idx - 5] +  # DOC
+            constraints[:, constraint_idx - 4] +  # ROUGH
+            constraints[:, constraint_idx - 3] +  # WFUEL
+            constraints[:, constraint_idx - 1])    # RANGE
+            
+
+        return constraints, summed_CV
 
 
 # Example usage
@@ -748,7 +757,7 @@ if __name__ == "__main__":
 
     # Instantiate class and evaluate single solution
     gaa = GAABenchmark(design_vars)
-    objectives, constraints = gaa.evaluate()
+    objectives, constraints, summed_CV = gaa.evaluate()
 
     print("\n--- Single Solution ---")
     objective_names = ["Max Noise",
@@ -779,12 +788,13 @@ if __name__ == "__main__":
 
     gaa_batch = GAABenchmark(design_vectors)
     start_time = time.time()
-    objectives_batch, constraints_batch = gaa_batch.evaluate()
+    objectives_batch, constraints_batch, summed_CV_batch = gaa_batch.evaluate()
     vectorised_time = time.time() - start_time
 
     print(f"Evaluation time: {vectorised_time:.4f} seconds")
     print(f"Objectives shape: {objectives_batch.shape}")
     print(f"Constraints shape: {constraints_batch.shape}")
+    print(f"Summed Constraint Violations shape: {summed_CV_batch.shape}")
 
     print(f"Max objectives across solutions: \n {np.max(objectives_batch, axis=0)} ...")
     print(f"Max constraint violation across solutions: \n {np.max(constraints_batch, axis=0)}")
@@ -796,7 +806,7 @@ if __name__ == "__main__":
     start_time = time.time()
     for design_vec in design_vectors[:10]:
         gaa_seq = GAABenchmark(design_vec)
-        _, _ = gaa_seq.evaluate()
+        _, _, _ = gaa_seq.evaluate()
     single_time = time.time() - start_time
     estimated_sequential = single_time * (n_solutions / 10)
 

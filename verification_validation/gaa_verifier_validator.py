@@ -176,10 +176,13 @@ class GAA_Validator:
 
         try:
             gaa = GAABenchmark(self.design_variables)
-            self.python_objectives, self.python_constraints = gaa.evaluate()
+            (self.python_objectives, 
+             self.python_constraints, 
+             self.python_summed_cv) = gaa.evaluate()
 
             print(f"Python objectives: {self.python_objectives.shape}")
             print(f"Python constraints: {self.python_constraints.shape}")
+            print(f"Python summed CV: {self.python_summed_cv.shape}")
             return True
         except Exception as e:
             print(f"Error in Python evaluation: {e}")
@@ -198,11 +201,11 @@ class GAA_Validator:
         obj_diff = np.divide(self.python_objectives - self.reference_objectives,
                              self.reference_objectives,
                              where=self.reference_objectives!=0,
-                             out=np.zeros_like(self.python_objectives, dtype=float))
+                             out=np.abs(self.python_objectives - self.reference_objectives))
         con_diff = np.divide(self.python_constraints - self.reference_constraints,
                              self.reference_constraints,
                              where=self.reference_constraints!=0,
-                             out=np.zeros_like(self.python_constraints, dtype=float))
+                             out=np.abs(self.python_constraints - self.reference_constraints))
 
         return {"objectives_diff": obj_diff,
                 "objectives_abs_diff": np.abs(obj_diff),
@@ -225,7 +228,8 @@ class GAA_Validator:
         Returns:
             Report string
         """
-        if self.python_objectives is None:
+
+        if not hasattr(self, 'python_objectives') or self.python_objectives is None:
             return "No results to report. Run evaluate_python_implementation() first."
 
         diffs = self.compute_differences()
@@ -260,8 +264,8 @@ class GAA_Validator:
         report.append("-" * 80)
         report.append(f"Tolerance threshold: {obj_tolerance}")
         report.append(f"Status: {'PASS' if obj_passes else 'FAIL'}")
-        report.append(f"Max absolute difference: {obj_max_diff:.2e}")
-        report.append(f"Mean absolute difference: {obj_mean_diff:.2e}")
+        report.append(f"Max relative difference: {obj_max_diff:.2e}")
+        report.append(f"Mean relative difference: {obj_mean_diff:.2e}")
         report.append(f"Std deviation of differences: {obj_std_diff:.2e}")
         report.append("")
 
@@ -269,8 +273,8 @@ class GAA_Validator:
         report.append("-" * 80)
         report.append(f"Tolerance threshold: {con_tolerance}")
         report.append(f"Status: {'PASS' if con_passes else 'FAIL'}")
-        report.append(f"Max absolute difference: {con_max_diff:.2e}")
-        report.append(f"Mean absolute difference: {con_mean_diff:.2e}")
+        report.append(f"Max relative difference: {con_max_diff:.2e}")
+        report.append(f"Mean relative difference: {con_mean_diff:.2e}")
         report.append(f"Std deviation of differences: {con_std_diff:.2e}")
         report.append("")
 
@@ -328,7 +332,7 @@ class GAA_Validator:
 
         report.append("Top 5 solutions with largest constraint errors:")
         for rank, idx in enumerate(worst_con_idx, 1):
-            if con_error_sum[idx] >0:
+            if con_error_sum[idx] > 0:
                 report.append(
                     f"  {rank}. Solution {idx}: Total error = {con_error_sum[idx]:.2e}"
                 )
@@ -373,7 +377,7 @@ def run_validation(csv_path: str,
     # Load reference data
     print(f"Loading CSV from: {csv_path}")
     if not validator.load_csv():
-        raise FileNotFoundError(f"Could not load CSV from {csv_path}")
+        raise ValueError(f"Could not load CSV from {csv_path}")
 
     # Evaluate Python implementation
     print("\nEvaluating Python GAA implementation...")
