@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "GAAFpy"
-version = "1.0.1"
+version = "1.0.0"
 authors = [
   { name="Thomas Stephan Vermeulen", email="T.S.Vermeulen@tudelft.nl" },
 ]

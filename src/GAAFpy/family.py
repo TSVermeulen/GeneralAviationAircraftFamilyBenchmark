@@ -333,7 +333,7 @@ class GAABenchmark:
         obj_indices_min = {"RANGE": 6, "LDMAX": 7, "VCMAX": 8}
         for response_name, obj_idx in obj_indices_min.items():
             response_idx = response_names.index(response_name)
-            objectives[:, obj_idx] = np.full(self.design_variables.shape[0], 1e6)
+            objectives[:, obj_idx] = np.full(self.design_variables.shape[0], np.inf)
             for variant_response in all_responses:
                 objectives[:, obj_idx] = np.minimum(
                     objectives[:, obj_idx], variant_response[:, response_idx]
@@ -471,7 +471,7 @@ if __name__ == "__main__":
                        "Platform Penalty"]
 
     print("Objectives:")
-    for i, (name, value) in enumerate(zip(objective_names, objectives[0])):
+    for i, (name, value) in enumerate(zip(objective_names, objectives[0], strict=True)):
         print(f"  {i + 1}. {name}: {value:.2f}")
     print(f"Max constraint and corresponding ID: {np.max(constraints[0])}, ID: {np.argmax(constraints[0])}")
 

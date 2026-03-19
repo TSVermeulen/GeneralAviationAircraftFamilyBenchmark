@@ -27,7 +27,7 @@ __status__ = "Release"
 # Standard library imports
 import os
 import json
-from typing import Dict,Any
+from typing import Dict, Any
 
 # Module-level cache for RSM coefficients (loaded once, reused for all optimisations)
 _COEFFICIENT_CACHE: Dict[str, Dict[str, Any]] = {}
@@ -72,20 +72,19 @@ def load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
 
     # Construct module and folder paths
     module_dir = os.path.dirname(os.path.abspath(__file__))
-    parent_dir = os.path.dirname(module_dir)
 
-    # data/ relative to parent directory (project root/data/)
-    candidates.append(os.path.join(parent_dir, "GAAFpy", "rsm_coefficients.json"))
+    # JSON file alongside this module
+    candidates.append(os.path.join(module_dir, "rsm_coefficients.json"))
 
     # relative to current working directory
     candidates.append(os.path.join(os.getcwd(), "rsm_coefficients.json"))
-    candidates.append(r"rsm_coefficients.json")  # Just in case
+    candidates.append("rsm_coefficients.json")  # Just in case
 
     # Try each candidate location
     for coeffs_file in candidates:
         if os.path.exists(coeffs_file):
             try:
-                with open(coeffs_file, 'r') as f:
+                with open(coeffs_file, 'r', encoding='utf-8') as f:
                     _COEFFICIENT_CACHE = json.load(f)
                     return _COEFFICIENT_CACHE
             except json.JSONDecodeError as e:
@@ -112,3 +111,4 @@ def load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
 if __name__ == "__main__":
     # Test run the function to verify it works
     output = load_rsm_coefficients()
+    print(f"Loaded coefficients for variants: {list(output.keys())}")

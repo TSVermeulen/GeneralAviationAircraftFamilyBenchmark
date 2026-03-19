@@ -213,6 +213,11 @@ class AircraftVariant:
         """
 
         variant_names = ["2-seater", "4-seater", "6-seater"]
+        if not 0 <= self.variant_index < len(variant_names):
+            raise ValueError(
+                f"Invalid variant index {self.variant_index}."
+                f"Must be 0, 1, or 2."
+                )
         variant_key = variant_names[self.variant_index]
 
         # Load coefficients from external file (cached at module level)
@@ -297,9 +302,3 @@ class AircraftVariant:
             result += coeff * var_dict[var_name] ** 2
 
         return result
-
-
-# This block can be used for demonstration or quick testing
-if __name__ == "__main__":
-    pass
-    

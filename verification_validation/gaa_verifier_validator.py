@@ -74,11 +74,14 @@ def add_src_to_path():
         if src_str not in sys.path:
             sys.path.insert(0, src_str)
 
-
-# Import GAA Benchmark after path is configured
-add_src_to_path()
-from GAAFpy.family import GAABenchmark
-
+# GAABenchmark deferred to function scope
+GAABenchmark = None
+def _ensure_imports():
+    global GAABenchmark
+    if GAABenchmark is None:
+        add_src_to_path()
+        from GAAFpy.family import GAABenchmark as _GAABenchmark
+        GAABenchmark = _GAABenchmark
 
 
 # Constants
@@ -168,7 +171,7 @@ class GAA_Validator:
                         self.reference_constraints[i, j] = float(row[constr_name])
                     elif i == 0 and not missing_constraints:  # Only print warning once
                         missing_constraints = True
-                        print(f"Warning: Misssing at least Column '{constr_name}' in CSV!")
+                        print(f"Warning: Missing at least Column '{constr_name}' in CSV!")
 
             print(f"Loaded CSV with {self.n_solutions} solutions")
             print(f"Design variables: {self.design_variables.shape}")
@@ -193,7 +196,9 @@ class GAA_Validator:
         """
 
         try:
-            gaa = GAABenchmark(self.design_variables)
+            # Ensure GAABenchmark is imported before creating instance
+            _ensure_imports()
+            gaa = GAABenchmark(self.design_variables)  # type: ignore
             (self.python_objectives, 
              self.python_constraints, 
              self.python_summed_cv) = gaa.evaluate()
