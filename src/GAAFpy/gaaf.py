@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-gaa.py
+gaaf.py
 =================
 
 Description
@@ -138,10 +138,11 @@ def _load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
     parent_dir = os.path.dirname(module_dir)
 
     # data/ relative to parent directory (project root/data/)
-    candidates.append(os.path.join(parent_dir, "data", "rsm_coefficients.json"))
+    candidates.append(os.path.join(parent_dir, "GAAFpy", "rsm_coefficients.json"))
 
-    # data/ relative to current working directory
-    candidates.append(os.path.join(os.getcwd(), "data", "rsm_coefficients.json"))
+    # relative to current working directory
+    candidates.append(os.path.join(os.getcwd(), "rsm_coefficients.json"))
+    candidates.append(r"rsm_coefficients.json")  # Just in case
 
     # Try each candidate location
     for coeffs_file in candidates:

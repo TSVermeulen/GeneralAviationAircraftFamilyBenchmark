@@ -1,6 +1,6 @@
 #-*- coding: utf-8 -*-
 """
-gaa_verifier_validator.py
+gaaf_verifier_validator.py
 =================================
 
 Description
@@ -21,7 +21,7 @@ GAA_Validator
 
 Examples
 --------
->>>from gaa_verifier_validator import run_validation
+>>>from gaaf_verifier_validator import run_validation
 >>>objs, cons, report = run_validation("path/to/csv",
                                        "path/to/report.txt")
 
@@ -45,6 +45,7 @@ Changelog:
 
 # Import standard libraries
 import sys
+import os
 import csv
 from pathlib import Path
 from typing import Tuple, Dict
@@ -61,13 +62,13 @@ __status__ = "Release"
 def add_src_to_path():
     """Add src directory to Python path to import gaa module."""
     script_dir = Path(__file__).parent.parent
-    src_dir = script_dir / "src"
+    src_dir = script_dir / "src" / "GAAFpy"
     if str(src_dir) not in sys.path:
         sys.path.insert(0, str(src_dir))
 
-# Import GAABenchmark after path is configured
+# Import GAA Benchmark after path is configured
 add_src_to_path()
-from gaa import GAABenchmark # type: ignore
+from gaaf import GAABenchmark # type: ignore
 
 
 # Constants
@@ -94,8 +95,11 @@ N_OBJECTIVES = 10
 N_CONSTRAINTS = 18
 
 # Set these paths to run validation
-DEFAULT_CSV_PATH = r"verification_validation/MOEA-GAA-output.csv"  # Relative or absolute path
-DEFAULT_REPORT_PATH = r"verification_validation/validation_report.txt"  # Optional
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_CSV_PATH = os.path.join(BASE_DIR, "MOEA-GAA-output.csv")
+
+# DEFAULT_CSV_PATH = r"verification_validation/MOEA-GAA-output.csv"  # Relative or absolute path
+DEFAULT_REPORT_PATH = os.path.join(BASE_DIR, "validation_report.txt")  # Optional
 
 
 # Main Validator Class
@@ -146,13 +150,15 @@ class GAA_Validator:
             # Extract constraints (starting from column 37: Constr1, Constr2, ...)
             # Note: CSV should have Constr1 through Constr18
             self.reference_constraints = np.zeros((self.n_solutions, N_CONSTRAINTS))
+            missing_constraints = False
             for i, row in enumerate(rows):
                 for j in range(N_CONSTRAINTS):
                     constr_name = f"Constr{j+1}"
                     if constr_name in row:
                         self.reference_constraints[i, j] = float(row[constr_name])
-                    elif i == 0:
-                        print(f"Warning: Column '{constr_name}' not found in CSV")
+                    elif i == 0 and not missing_constraints:  # Only print warning once
+                        missing_constraints = True
+                        print(f"Warning: Misssing at least Column '{constr_name}' in CSV!")
 
             print(f"Loaded CSV with {self.n_solutions} solutions")
             print(f"Design variables: {self.design_variables.shape}")
