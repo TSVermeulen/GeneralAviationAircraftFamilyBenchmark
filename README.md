@@ -1,5 +1,5 @@
-# GeneralAviationAircraftFamilyBenchmark
-A Repository for the Python implementation of the GAA family benchmark problem developed by T.W. Simpson, W. Chen. J.K. Allen, F. Mistree, B.S. D'Souza, R. Shah, P.M. Reed, and D. Hadka. 
+# GeneralAviationAircraftFamilyBenchmark (GAAFPy)
+A Python implementation of the GAA family benchmark problem developed by T.W. Simpson, W. Chen. J.K. Allen, F. Mistree, B.S. D'Souza, R. Shah, P.M. Reed, and D. Hadka. 
 
 This repository is fundamentally a Python translation of the RealWorldBenchmarks implementation in the MOEA framework by Zatarain Salazar, J., Hadka, D., Reed, P., Seada, H., & Deb, K (see reference 5).
 
@@ -7,6 +7,13 @@ This repository is fundamentally a Python translation of the RealWorldBenchmarks
 The framework is tested to work using the following Python version and packages:
 1. Python >= 3.13.12
 2. Numpy >= 2.4.3
+
+## Installation
+The recommended method is through PyPi by running the command: 
+
+```
+pip install gaafpy
+```
 
 ## License
 The Benchmark problem is copyright by the respective authors. Please cite them as appropriate if using the benchmark problem. 
