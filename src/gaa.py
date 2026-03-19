@@ -24,15 +24,15 @@ GAABenchmark
 
 Examples
 --------
-A detailed example is included at the bottom of the file demonstrating 
-how to instantiate the GAABenchmark class, evaluate a single solution, and 
+A detailed example is included at the bottom of the file demonstrating
+how to instantiate the GAABenchmark class, evaluate a single solution, and
 perform batch evaluations.
 
 Notes
 -----
-This module is effectively a translation of the GAA problem as implemented in 
-the MOEA framework in Java in [5]. The Java implementation, just like this 
-implementation, is based on the original problem formulation and RSMs from 
+This module is effectively a translation of the GAA problem as implemented in
+the MOEA framework in Java in [5]. The Java implementation, just like this
+implementation, is based on the original problem formulation and RSMs from
 [1-4].
 
 References
@@ -58,10 +58,10 @@ References
         Design Problems," WCCI 2012 World Congress on Computational
         Intelligence, Congress on Evolutionary Computation, Brisbane,
         Australia, pp. 986-995.
-    
-    [5] Zatarain Salazar, J., Hadka, D., Reed, P., Seada, H., and Deb, K. 
-        (2024). Diagnostic benchmarking of many-objective evolutionary 
-        algorithms for real-world problems. Engineering Optimization, 
+
+    [5] Zatarain Salazar, J., Hadka, D., Reed, P., Seada, H., and Deb, K.
+        (2024). Diagnostic benchmarking of many-objective evolutionary
+        algorithms for real-world problems. Engineering Optimization,
         1-22. https://doi.org/10.1080/0305215X.2024.2381818.
 
 Versioning
@@ -72,8 +72,8 @@ Versioning
 @date (dd-mm-yyyy): 18-03-2026
 
 Changelog:
-- V1.0: Initial version. Tested to function for both single solution and 
-        batch evaluations. Single solution test shows matching output with MOEA 
+- V1.0: Initial version. Tested to function for both single solution and
+        batch evaluations. Single solution test shows matching output with MOEA
         Java implementation.
 """
 
@@ -114,35 +114,35 @@ SCALING_PARAMS = [
 def _load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
     """
     Load RSM coefficients from external JSON file.
-    Results are cached module-wide to avoid repeated file I/O during 
+    Results are cached module-wide to avoid repeated file I/O during
     optimisation.
-    
+
     Returns:
         Dictionary of coefficients organised by variant and response variable.
-        
+
     Raises:
         FileNotFoundError: If coefficients file cannot be found in any location
         json.JSONDecodeError: If coefficients file is invalid JSON
     """
 
     global _COEFFICIENT_CACHE
-    
+
     if _COEFFICIENT_CACHE:
         return _COEFFICIENT_CACHE
-    
+
     # List of candidate locations to search
     candidates = []
-    
+
     # Construct module and folder paths
     module_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(module_dir)
 
     # data/ relative to parent directory (project root/data/)
     candidates.append(os.path.join(parent_dir, "data", "rsm_coefficients.json"))
-    
+
     # data/ relative to current working directory
     candidates.append(os.path.join(os.getcwd(), "data", "rsm_coefficients.json"))
-    
+
     # Try each candidate location
     for coeffs_file in candidates:
         if os.path.exists(coeffs_file):
@@ -156,7 +156,7 @@ def _load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
                     e.doc,
                     e.pos
                 )
-    
+
     # If we get here, file was not found in any location
     error_msg = (
         "RSM coefficients file 'rsm_coefficients.json' not found.\n\n"
@@ -175,13 +175,13 @@ def _load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
 
 class AircraftVariant:
     """
-    Class-based representation of an individual aircraft variant within the GAA 
-    family design problem. Either represents a 2-seater, 4-seater, or 6-seater 
+    Class-based representation of an individual aircraft variant within the GAA
+    family design problem. Either represents a 2-seater, 4-seater, or 6-seater
     variant.
     """
 
-    def __init__(self, variant_name: str, 
-                 design_vars: np.ndarray, 
+    def __init__(self, variant_name: str,
+                 design_vars: np.ndarray,
                  variant_index: int) -> None:
         """
         Initialise an aircraft variant.
@@ -189,9 +189,9 @@ class AircraftVariant:
         Args:
             variant_name: str,
                 Name of the variant (e.g., "2-seater", "4-seater", "6-seater")
-            design_vars: np.ndarray, 
+            design_vars: np.ndarray,
                 Array of 9 design variables (raw/unscaled values)
-            variant_index: int, 
+            variant_index: int,
                 Index for the variant (0 for 2-seater, 1 for 4-seater, 2 for 6-seater)
         """
 
@@ -300,16 +300,16 @@ class AircraftVariant:
 
         variant_names = ["2-seater", "4-seater", "6-seater"]
         variant_key = variant_names[self.variant_index]
-        
+
         # Load coefficients from external file (cached at module level)
         all_coefficients = _load_rsm_coefficients()
-        
+
         if variant_key not in all_coefficients:
             raise ValueError(
                 f"Coefficients not found for variant '{variant_key}'. "
                 f"Available variants: {list(all_coefficients.keys())}"
             )
-        
+
         return all_coefficients[variant_key]
 
 
@@ -329,7 +329,7 @@ class AircraftVariant:
 
         Args:
             coeffs: Dict[str, Any],
-                Coefficient dictionary with linear, interaction, 
+                Coefficient dictionary with linear, interaction,
                 and quadratic terms.
             cspd: float,
                 Scaled cruise speed design variable.
@@ -437,7 +437,7 @@ class GAABenchmark:
         "RANGE": 2000,
     }
 
-    def __init__(self, 
+    def __init__(self,
                  design_variables: np.ndarray) -> None:
         """
         Initialise the GAA benchmark problem.
@@ -446,7 +446,7 @@ class GAABenchmark:
             design_variables: np.ndarray
                 - Array of shape (N, 27), where N is the number of solutions
         """
-            
+
         # Convert 1D to 2D if a single solution is requested
         if design_variables.ndim == 1:
             if design_variables.shape[0] != 27:
@@ -463,7 +463,7 @@ class GAABenchmark:
             raise ValueError(
                 f"design_variables must be 1D or 2D, got {design_variables.ndim}D"
             )
-        
+
         self.design_variables = design_variables
 
 
@@ -546,14 +546,14 @@ class GAABenchmark:
 
 
     @staticmethod
-    def _rsm_evaluation(coeffs: Dict[str, Any], 
+    def _rsm_evaluation(coeffs: Dict[str, Any],
                         variant_vars: np.ndarray) -> np.ndarray:
         """
         Vectorised RSM polynomial evaluation for all solutions.
 
         Args:
             coeffs: Dict[str, Any]
-                Coefficient dictionary with constant, linear, interaction, 
+                Coefficient dictionary with constant, linear, interaction,
                 and quadratic terms.
             variant_vars: np.ndarray, shape (N, 9)
                 Scaled design variables for N solutions
@@ -580,7 +580,7 @@ class GAABenchmark:
         # Interaction terms
         # Precompute variable name to index mapping for O(1) lookups
         var_index = {name: i for i, name in enumerate(var_names)}
-        
+
         for interaction_key, coeff in coeffs["interaction"].items():
             var1_name, var2_name = interaction_key.split(',')
             var1_idx = var_index[var1_name]
@@ -596,7 +596,7 @@ class GAABenchmark:
         return result
 
 
-    def _calculate_objectives(self, 
+    def _calculate_objectives(self,
                               response_vars_all: Tuple[np.ndarray, np.ndarray, np.ndarray],
                               scaled_vars_all: np.ndarray) -> np.ndarray:
         """
@@ -616,7 +616,7 @@ class GAABenchmark:
         responses_2s, responses_4s, responses_6s = response_vars_all
         all_responses = [responses_2s, responses_4s, responses_6s]
 
-        # Maximisation objectives
+        # Minimisation objectives - we take the worst case across variants
         obj_indices = {"NOISE": 0, "WEMP": 1, "DOC": 2, "ROUGH": 3, "WFUEL": 4, "PURCH": 5}
         for response_name, obj_idx in obj_indices.items():
             response_idx = response_names.index(response_name)
@@ -625,7 +625,7 @@ class GAABenchmark:
                     objectives[:, obj_idx], variant_response[:, response_idx]
                 )
 
-        # Minimisation objectives
+        # Maximisation objectives - we take the worst case across variants
         obj_indices_min = {"RANGE": 6, "LDMAX": 7, "VCMAX": 8}
         for response_name, obj_idx in obj_indices_min.items():
             response_idx = response_names.index(response_name)
@@ -669,7 +669,7 @@ class GAABenchmark:
         return np.sqrt(penalties)
 
 
-    def _calculate_constraints(self, 
+    def _calculate_constraints(self,
                                response_vars_all: Tuple[np.ndarray, np.ndarray, np.ndarray]) -> np.ndarray:
         """
         Vectorised constraint violation calculation for all solutions.
@@ -738,12 +738,12 @@ if __name__ == "__main__":
     print("GAA benchmark problem - test input and evaluation")
     print("=" * 70)
 
-    # Single solution evaluation 
-    design_vars = np.array([0.336628, 7.355679, 4.687910, 5.703373, 22.424994, 
-                            96.004001, 19.145602, 3.212344, 0.460768, 0.240046, 
-                            7.482713, 4.846902, 5.556927, 23.444377, 92.595728, 
-                            17.764686, 3.294423, 0.548547, 0.332088, 7.182878, 
-                            5.689232, 5.510011, 23.308395, 85.131278, 16.495613, 
+    # Single solution evaluation
+    design_vars = np.array([0.336628, 7.355679, 4.687910, 5.703373, 22.424994,
+                            96.004001, 19.145602, 3.212344, 0.460768, 0.240046,
+                            7.482713, 4.846902, 5.556927, 23.444377, 92.595728,
+                            17.764686, 3.294423, 0.548547, 0.332088, 7.182878,
+                            5.689232, 5.510011, 23.308395, 85.131278, 16.495613,
                             3.708131, 0.542831])
 
     # Instantiate class and evaluate single solution
@@ -768,7 +768,7 @@ if __name__ == "__main__":
     print(f"Max constraint and corresponding ID: {np.max(constraints[0])}, ID: {np.argmax(constraints[0])}")
 
     # Batch evaluation
-    print("\n" + "=" * 70)    
+    print("\n" + "=" * 70)
     n_solutions = 100
     print("--- Batch Evaluation (2D Array Input of 100 solutions) ---")
     design_vectors = np.random.rand(n_solutions, 27)
@@ -776,7 +776,7 @@ if __name__ == "__main__":
     # Scale to valid ranges
     for i, (lower, upper) in enumerate(GAABenchmark.VARIABLE_BOUNDS):
         design_vectors[:, i] = lower + design_vectors[:, i] * (upper - lower)
-    
+
     gaa_batch = GAABenchmark(design_vectors)
     start_time = time.time()
     objectives_batch, constraints_batch = gaa_batch.evaluate()
@@ -785,7 +785,7 @@ if __name__ == "__main__":
     print(f"Evaluation time: {vectorised_time:.4f} seconds")
     print(f"Objectives shape: {objectives_batch.shape}")
     print(f"Constraints shape: {constraints_batch.shape}")
-    
+
     print(f"Max objectives across solutions: \n {np.max(objectives_batch, axis=0)} ...")
     print(f"Max constraint violation across solutions: \n {np.max(constraints_batch, axis=0)}")
 
@@ -799,7 +799,7 @@ if __name__ == "__main__":
         _, _ = gaa_seq.evaluate()
     single_time = time.time() - start_time
     estimated_sequential = single_time * (n_solutions / 10)
-    
+
     print(f"  10 solutions: {single_time:.4f}s")
     print(f"  Estimated for {n_solutions}: {estimated_sequential:.4f}s")
     print(f"  Vectorised for {n_solutions}: {vectorised_time:.4f}s")
