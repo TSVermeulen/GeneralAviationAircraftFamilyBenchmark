@@ -80,7 +80,7 @@ Changelog:
 # Standard library imports
 import json
 import os
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, ClassVar, Union, List
 
 # 3rd party imports
 import numpy as np
@@ -155,7 +155,7 @@ def _load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
                     f"Invalid JSON in {coeffs_file}: {e.msg}",
                     e.doc,
                     e.pos
-                )
+                ) from e
 
     # If we get here, file was not found in any location
     error_msg = (
@@ -396,8 +396,8 @@ class GAABenchmark:
     - Objective function evaluations
     """
 
-    # Design variable bounds (raw/ unscaled values)
-    VARIABLE_BOUNDS = [
+    # Design variable bounds (raw/unscaled values)
+    VARIABLE_BOUNDS: ClassVar[List[Tuple[float, float]]] = [
         (0.24, 0.48),  # CSPD2
         (7, 11),  # AR2
         (0, 6),  # SWEEP2
@@ -428,7 +428,7 @@ class GAABenchmark:
     ]
 
     # Constraint limits
-    CONSTRAINT_LIMITS = {
+    CONSTRAINT_LIMITS: ClassVar = {
         "NOISE": 75,
         "WEMP": 2200,
         "DOC": 80,
@@ -800,9 +800,9 @@ if __name__ == "__main__":
     print(f"Max constraint violation across solutions: \n {np.max(constraints_batch, axis=0)}")
 
     # Performance comparison
-    print(f"\n" + "=" * 70)
+    print("\n" + "=" * 70)
     print("--- Performance Comparison ---")
-    print(f"Sequential (10 single solutions):")
+    print("Sequential (10 single solutions):")
     start_time = time.time()
     for design_vec in design_vectors[:10]:
         gaa_seq = GAABenchmark(design_vec)

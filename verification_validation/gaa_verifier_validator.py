@@ -151,6 +151,8 @@ class GAA_Validator:
                     constr_name = f"Constr{j+1}"
                     if constr_name in row:
                         self.reference_constraints[i, j] = float(row[constr_name])
+                    elif i == 0:
+                        print(f"Warning: Column '{constr_name}' not found in CSV")
 
             print(f"Loaded CSV with {self.n_solutions} solutions")
             print(f"Design variables: {self.design_variables.shape}")
@@ -332,7 +334,7 @@ class GAA_Validator:
 
         report.append("Top 5 solutions with largest constraint errors:")
         for rank, idx in enumerate(worst_con_idx, 1):
-            if con_error_sum[idx] > 0:
+            if con_error_sum[idx] > con_tolerance:
                 report.append(
                     f"  {rank}. Solution {idx}: Total error = {con_error_sum[idx]:.2e}"
                 )
