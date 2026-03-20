@@ -132,7 +132,9 @@ class GAABenchmark:
         self.design_variables = design_variables
 
 
-    def evaluate(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def evaluate(self,
+                 constraint_targets: Dict[str, Any] | None = None
+                 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Evaluate the GAA problem for design solution(s).
 
@@ -147,7 +149,9 @@ class GAABenchmark:
         scaled_vars = self._scale_variables(self.design_variables)
         response_vars = self._get_response_variables(scaled_vars)
         objectives = self._calculate_objectives(response_vars, scaled_vars)
-        constraints, summed_CV = self._calculate_constraints(response_vars)
+        constraints, summed_CV = self._calculate_constraints(
+            response_vars,
+            constraint_targets if constraint_targets is not None else CONSTRAINT_LIMITS)
         return objectives, constraints, summed_CV
 
 
@@ -448,8 +452,8 @@ if __name__ == "__main__":
     design_vectors = np.random.rand(n_solutions, 27)
 
     # Scale to valid ranges
-    uppers = np.asarray(VARIABLE_BOUNDS[0], dtype=float)
-    lowers = np.asarray(VARIABLE_BOUNDS[1], dtype=float)
+    uppers = np.asarray(VARIABLE_BOUNDS[1], dtype=float)
+    lowers = np.asarray(VARIABLE_BOUNDS[0], dtype=float)
     design_vectors = lowers + design_vectors * (uppers - lowers)
 
     # Perform batch analysis

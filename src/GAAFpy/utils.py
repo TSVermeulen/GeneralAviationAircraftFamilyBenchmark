@@ -85,7 +85,7 @@ VARIABLE_BOUNDS: List[List[float]] = [[0.24,  # CSPD2
                                        14,    # SEATW6
                                        3,     # ELODT6 
                                        0.46   # TAPER6
-                                       ],  # Upper bounds
+                                       ],  # Lower bounds
                                       [0.48,   # CSPD2
                                        11,     # AR2 
                                        6,      # SWEEP2 
@@ -113,7 +113,7 @@ VARIABLE_BOUNDS: List[List[float]] = [[0.24,  # CSPD2
                                        20,     # SEATW6
                                        3.75,   # ELODT6  
                                        1       # TAPER6 
-                                       ],  # Lower bounds
+                                       ],  # Upper bounds
                                      ]
 
 

@@ -310,13 +310,13 @@ if __name__ == "__main__":
     # Example usage to evaluate a single variant with test design variables
     from .utils import VARIABLE_BOUNDS
 
-    # Construct 100 sample design vectors for testing
-    n_solutions = 100
-    design_vectors = np.random.rand(9)  # A variant has 9 dvars
+    # Construct sample design vector for testing
+    n_solutions = 1
+    design_vectors = np.random.rand(n_solutions, 9)[0]  # A variant has 9 dvars
 
     # Scale to valid ranges
-    uppers = np.asarray(VARIABLE_BOUNDS[0][:9], dtype=float)
-    lowers = np.asarray(VARIABLE_BOUNDS[1][:9], dtype=float)
+    uppers = np.asarray(VARIABLE_BOUNDS[1][:9], dtype=float)
+    lowers = np.asarray(VARIABLE_BOUNDS[0][:9], dtype=float)
     design_vectors = lowers + design_vectors * (uppers - lowers)
 
     # Instantiate class
