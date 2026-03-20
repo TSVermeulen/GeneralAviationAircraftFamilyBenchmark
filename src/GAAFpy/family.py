@@ -66,24 +66,26 @@ Versioning
 ----------
 @author: T.S. Vermeulen
 @email: T.S.Vermeulen@tudelft.nl
-@version: 1.1
-@date (dd-mm-yyyy): 19-03-2026
+@version: 1.1.5
+@date (dd-mm-yyyy): 20-03-2026
 
 Changelog:
 - V1.0: Initial version. Tested to function for both single solution and
         batch evaluations. Single solution test shows matching output with MOEA
         Java implementation.
 - V1.1: Cleaned up code, split out modules. Prepared for package release.
+- V1.1.5: Moved variable bounds to utils. Moved constraint limits to utils and 
+          made them optional inputs for more flexible usage. 
 """
 
 # Import standard libraries
-from typing import List, Tuple, ClassVar, Dict, Any
+from typing import Tuple, Dict, Any
 
 # Import 3rd party libraries
 import numpy as np
 
 # Import local modules
-from .utils import SCALING_PARAMS, load_rsm_coefficients
+from .utils import SCALING_PARAMS, load_rsm_coefficients, CONSTRAINT_LIMITS
 
 # Concrete Classes
 
@@ -97,47 +99,6 @@ class GAABenchmark:
     - Constraint function evaluations
     - Objective function evaluations
     """
-
-    # Design variable bounds (raw/unscaled values)
-    VARIABLE_BOUNDS: ClassVar[List[Tuple[float, float]]] = [
-        (0.24, 0.48),  # CSPD2
-        (7, 11),  # AR2
-        (0, 6),  # SWEEP2
-        (5.5, 5.968),  # DPROP2
-        (19, 25),  # WINGLD2
-        (85, 110),  # AF2
-        (14, 20),  # SEATW2
-        (3, 3.75),  # ELODT2
-        (0.46, 1),  # TAPER2
-        (0.24, 0.48),  # CSPD4
-        (7, 11),  # AR4
-        (0, 6),  # SWEEP4
-        (5.5, 5.968),  # DPROP4
-        (19, 25),  # WINGLD4
-        (85, 110),  # AF4
-        (14, 20),  # SEATW4
-        (3, 3.75),  # ELODT4
-        (0.46, 1),  # TAPER4
-        (0.24, 0.48),  # CSPD6
-        (7, 11),  # AR6
-        (0, 6),  # SWEEP6
-        (5.5, 5.968),  # DPROP6
-        (19, 25),  # WINGLD6
-        (85, 110),  # AF6
-        (14, 20),  # SEATW6
-        (3, 3.75),  # ELODT6
-        (0.46, 1),  # TAPER6
-    ]
-
-    # Constraint limits
-    CONSTRAINT_LIMITS: ClassVar = {
-        "NOISE": 75,
-        "WEMP": 2200,
-        "DOC": 80,
-        "ROUGH": 2,
-        "WFUEL": {"2-seater": 450, "4-seater": 475, "6-seater": 500},
-        "RANGE": 2000,
-    }
 
     def __init__(self,
                  design_variables: np.ndarray) -> None:
@@ -171,7 +132,9 @@ class GAABenchmark:
         self.design_variables = design_variables
 
 
-    def evaluate(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def evaluate(self,
+                 constraint_targets: Dict[str, Any] | None = None
+                 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Evaluate the GAA problem for design solution(s).
 
@@ -186,7 +149,9 @@ class GAABenchmark:
         scaled_vars = self._scale_variables(self.design_variables)
         response_vars = self._get_response_variables(scaled_vars)
         objectives = self._calculate_objectives(response_vars, scaled_vars)
-        constraints, summed_CV = self._calculate_constraints(response_vars)
+        constraints, summed_CV = self._calculate_constraints(
+            response_vars,
+            constraint_targets if constraint_targets is not None else CONSTRAINT_LIMITS)
         return objectives, constraints, summed_CV
 
 
@@ -374,12 +339,16 @@ class GAABenchmark:
 
 
     def _calculate_constraints(self,
-                               response_vars_all: Tuple[np.ndarray, np.ndarray, np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+                               response_vars_all: Tuple[np.ndarray, np.ndarray, np.ndarray],
+                               constraint_targets: Dict[str, Any] = CONSTRAINT_LIMITS) -> Tuple[np.ndarray, np.ndarray]:
         """
         Vectorised constraint violation calculation for all solutions.
 
         Args:
             response_vars_all: Tuple of 3 arrays, each (N, 9)
+            constraint_targets: Dict[str, Any]
+                Dictionary of constraint limits for each response variable.
+                If not provided, defaults to CONSTRAINT_LIMITS from utils.py.
 
         Returns:
             Tuple of np.ndarray, shape (N, 18) and np.ndarray shape (N,)
@@ -396,38 +365,38 @@ class GAABenchmark:
 
             # NOISE constraint
             noise_idx = response_names.index("NOISE")
-            noise_cv = (responses[:, noise_idx] - self.CONSTRAINT_LIMITS["NOISE"]) / self.CONSTRAINT_LIMITS["NOISE"]
+            noise_cv = (responses[:, noise_idx] - constraint_targets["NOISE"]) / constraint_targets["NOISE"]
             constraints[:, constraint_idx] = np.maximum(0, noise_cv)
             constraint_idx += 1
 
             # WEMP constraint
             wemp_idx = response_names.index("WEMP")
-            wemp_cv = (responses[:, wemp_idx] - self.CONSTRAINT_LIMITS["WEMP"]) / self.CONSTRAINT_LIMITS["WEMP"]
+            wemp_cv = (responses[:, wemp_idx] - constraint_targets["WEMP"]) / constraint_targets["WEMP"]
             constraints[:, constraint_idx] = np.maximum(0, wemp_cv)
             constraint_idx += 1
 
             # DOC constraint
             doc_idx = response_names.index("DOC")
-            doc_cv = (responses[:, doc_idx] - self.CONSTRAINT_LIMITS["DOC"]) / self.CONSTRAINT_LIMITS["DOC"]
+            doc_cv = (responses[:, doc_idx] - constraint_targets["DOC"]) / constraint_targets["DOC"]
             constraints[:, constraint_idx] = np.maximum(0, doc_cv)
             constraint_idx += 1
 
             # ROUGH constraint
             rough_idx = response_names.index("ROUGH")
-            rough_cv = (responses[:, rough_idx] - self.CONSTRAINT_LIMITS["ROUGH"]) / self.CONSTRAINT_LIMITS["ROUGH"]
+            rough_cv = (responses[:, rough_idx] - constraint_targets["ROUGH"]) / constraint_targets["ROUGH"]
             constraints[:, constraint_idx] = np.maximum(0, rough_cv)
             constraint_idx += 1
 
             # WFUEL constraint
             wfuel_idx = response_names.index("WFUEL")
-            wfuel_limit = self.CONSTRAINT_LIMITS["WFUEL"][variant_name]
+            wfuel_limit = constraint_targets["WFUEL"][variant_name]
             wfuel_cv = (responses[:, wfuel_idx] - wfuel_limit) / wfuel_limit
             constraints[:, constraint_idx] = np.maximum(0, wfuel_cv)
             constraint_idx += 1
 
             # RANGE constraint
             range_idx = response_names.index("RANGE")
-            range_cv = -(responses[:, range_idx] - self.CONSTRAINT_LIMITS["RANGE"]) / self.CONSTRAINT_LIMITS["RANGE"]
+            range_cv = -(responses[:, range_idx] - constraint_targets["RANGE"]) / constraint_targets["RANGE"]
             constraints[:, constraint_idx] = np.maximum(0, range_cv)
             constraint_idx += 1
 
@@ -441,6 +410,7 @@ class GAABenchmark:
 # Example usage
 if __name__ == "__main__":
     import time
+    from .utils import VARIABLE_BOUNDS
 
     print("=" * 70)
     print("GAA benchmark problem - test input and evaluation")
@@ -482,9 +452,11 @@ if __name__ == "__main__":
     design_vectors = np.random.rand(n_solutions, 27)
 
     # Scale to valid ranges
-    for i, (lower, upper) in enumerate(GAABenchmark.VARIABLE_BOUNDS):
-        design_vectors[:, i] = lower + design_vectors[:, i] * (upper - lower)
+    uppers = np.asarray(VARIABLE_BOUNDS[1], dtype=float)
+    lowers = np.asarray(VARIABLE_BOUNDS[0], dtype=float)
+    design_vectors = lowers + design_vectors * (uppers - lowers)
 
+    # Perform batch analysis
     gaa_batch = GAABenchmark(design_vectors)
     start_time = time.time()
     objectives_batch, constraints_batch, summed_CV_batch = gaa_batch.evaluate()

@@ -12,11 +12,12 @@ Versioning
 ----------
 @author: T.S. Vermeulen
 @email: T.S.Vermeulen@tudelft.nl
-@version: 1.0
-@date (dd-mm-yyyy): 19-03-2026
+@version: 1.1
+@date (dd-mm-yyyy): 20-03-2026
 
 Changelog:
 - V1.0: Initial version.
+- V1.1: Added additional variable describing the design variable bounds
 """
 
 # Module Constants
@@ -27,7 +28,7 @@ __status__ = "Release"
 # Standard library imports
 import os
 import json
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 # Module-level cache for RSM coefficients (loaded once, reused for all optimisations)
 _COEFFICIENT_CACHE: Dict[str, Dict[str, Any]] = {}
@@ -45,6 +46,75 @@ SCALING_PARAMS = [
     ("ELODT", 3.375, 0.375),
     ("TAPER", 0.73, 0.27),
 ]
+
+# Constraint limits
+CONSTRAINT_LIMITS  = {
+    "NOISE": 75,
+    "WEMP": 2200,
+    "DOC": 80,
+    "ROUGH": 2,
+    "WFUEL": {"2-seater": 450, "4-seater": 475, "6-seater": 500},
+    "RANGE": 2000,
+}
+
+# Design variable bounds (raw/unscaled values)
+VARIABLE_BOUNDS: List[List[float]] = [[0.24,  # CSPD2
+                                       7,     # AR2 
+                                       0,     # SWEEP2 
+                                       5.5,   # DPROP2
+                                       19,    # WINGLD2 
+                                       85,    # AF2 
+                                       14,    # SEATW2
+                                       3,     # ELODT2
+                                       0.46,  # TAPER2
+                                       0.24,  # CSPD4
+                                       7,     # AR4
+                                       0,     # SWEEP4
+                                       5.5,   # DPROP4 
+                                       19,    # WINGLD4
+                                       85,    # AF4 
+                                       14,    # SEATW4 
+                                       3,     # ELODT4 
+                                       0.46,  # TAPER4 
+                                       0.24,  # CSPD6
+                                       7,     # AR6
+                                       0,     # SWEEP6
+                                       5.5,   # DPROP6
+                                       19,    # WINGLD6
+                                       85,    # AF6
+                                       14,    # SEATW6
+                                       3,     # ELODT6 
+                                       0.46   # TAPER6
+                                       ],  # Lower bounds
+                                      [0.48,   # CSPD2
+                                       11,     # AR2 
+                                       6,      # SWEEP2 
+                                       5.968,  # DPROP2
+                                       25,     # WINGLD2 
+                                       110,    # AF2  
+                                       20,     # SEATW2
+                                       3.75,   # ELODT2 
+                                       1,      # TAPER2
+                                       0.48,   # CSPD4 
+                                       11,     # AR4
+                                       6,      # SWEEP4 
+                                       5.968,  # DPROP4  
+                                       25,     # WINGLD4 
+                                       110,    # AF4      
+                                       20,     # SEATW4      
+                                       3.75,   # ELODT4      
+                                       1,      # TAPER4  
+                                       0.48,   # CSPD6     
+                                       11,     # AR6 
+                                       6,      # SWEEP6 
+                                       5.968,  # DPROP6 
+                                       25,     # WINGLD6
+                                       110,    # AF6 
+                                       20,     # SEATW6
+                                       3.75,   # ELODT6  
+                                       1       # TAPER6 
+                                       ],  # Upper bounds
+                                     ]
 
 
 # Module Functions

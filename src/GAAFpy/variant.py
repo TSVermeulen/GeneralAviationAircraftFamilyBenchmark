@@ -25,6 +25,8 @@ the MOEA framework in Java in [5]. The Java implementation, just like this
 implementation, is based on the original problem formulation and RSMs from
 [1-4].
 
+Note that this module currently only works for single solution evaluations. 
+
 References
 ----------
     [1] T. W. Simpson, W. Chen, J. K. Allen, and F. Mistree (1996),
@@ -302,3 +304,26 @@ class AircraftVariant:
             result += coeff * var_dict[var_name] ** 2
 
         return result
+
+
+if __name__ == "__main__":
+    # Example usage to evaluate a single variant with test design variables
+    from .utils import VARIABLE_BOUNDS
+
+    # Construct sample design vector for testing
+    n_solutions = 1
+    design_vectors = np.random.rand(n_solutions, 9)[0]  # A variant has 9 dvars
+
+    # Scale to valid ranges
+    uppers = np.asarray(VARIABLE_BOUNDS[1][:9], dtype=float)
+    lowers = np.asarray(VARIABLE_BOUNDS[0][:9], dtype=float)
+    design_vectors = lowers + design_vectors * (uppers - lowers)
+
+    # Instantiate class
+    variant = AircraftVariant(variant_name="4-seater", 
+                              design_vars=design_vectors, 
+                              variant_index=1)
+    
+    variant.calculate_response_variables()
+    print(f"Response variables for {variant.name} variant:")
+    print(variant.response_vars)
