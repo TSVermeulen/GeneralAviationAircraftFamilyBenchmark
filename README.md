@@ -17,7 +17,7 @@ pip install gaafpy
 
 ## Community Guidelines
 
-This software is currently being maintained by me @TSVermeulen. If you find any bugs, want to contribute or have any questions, you can either open a ticket here on GitHub or send me an email at T.S.Vermeulen@tudelft.nl 
+This software is currently being maintained by me @TSVermeulen. If you find any bugs, want to contribute or have any questions, you can open a ticket here on GitHub.
 
 ## License
 The Benchmark problem is copyright by the respective authors. Please cite them as appropriate if using the benchmark problem. 
