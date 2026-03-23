@@ -66,24 +66,26 @@ Versioning
 ----------
 @author: T.S. Vermeulen
 @email: T.S.Vermeulen@tudelft.nl
-@version: 1.1
-@date (dd-mm-yyyy): 19-03-2026
+@version: 1.1.5
+@date (dd-mm-yyyy): 20-03-2026
 
 Changelog:
 - V1.0: Initial version. Tested to function for both single solution and
         batch evaluations. Single solution test shows matching output with MOEA
         Java implementation.
 - V1.1: Cleaned up code, split out modules. Prepared for package release.
+- V1.1.5: Moved variable bounds to utils. Moved constraint limits to utils and 
+          made them optional inputs for more flexible usage. Cleaned up code. 
 """
 
 # Import standard libraries
-from typing import List, Tuple, ClassVar, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 
 # Import 3rd party libraries
 import numpy as np
 
 # Import local modules
-from .utils import SCALING_PARAMS, load_rsm_coefficients
+from .utils import SCALING_PARAMS, load_rsm_coefficients, CONSTRAINT_LIMITS
 
 # Concrete Classes
 
@@ -97,47 +99,6 @@ class GAABenchmark:
     - Constraint function evaluations
     - Objective function evaluations
     """
-
-    # Design variable bounds (raw/unscaled values)
-    VARIABLE_BOUNDS: ClassVar[List[Tuple[float, float]]] = [
-        (0.24, 0.48),  # CSPD2
-        (7, 11),  # AR2
-        (0, 6),  # SWEEP2
-        (5.5, 5.968),  # DPROP2
-        (19, 25),  # WINGLD2
-        (85, 110),  # AF2
-        (14, 20),  # SEATW2
-        (3, 3.75),  # ELODT2
-        (0.46, 1),  # TAPER2
-        (0.24, 0.48),  # CSPD4
-        (7, 11),  # AR4
-        (0, 6),  # SWEEP4
-        (5.5, 5.968),  # DPROP4
-        (19, 25),  # WINGLD4
-        (85, 110),  # AF4
-        (14, 20),  # SEATW4
-        (3, 3.75),  # ELODT4
-        (0.46, 1),  # TAPER4
-        (0.24, 0.48),  # CSPD6
-        (7, 11),  # AR6
-        (0, 6),  # SWEEP6
-        (5.5, 5.968),  # DPROP6
-        (19, 25),  # WINGLD6
-        (85, 110),  # AF6
-        (14, 20),  # SEATW6
-        (3, 3.75),  # ELODT6
-        (0.46, 1),  # TAPER6
-    ]
-
-    # Constraint limits
-    CONSTRAINT_LIMITS: ClassVar = {
-        "NOISE": 75,
-        "WEMP": 2200,
-        "DOC": 80,
-        "ROUGH": 2,
-        "WFUEL": {"2-seater": 450, "4-seater": 475, "6-seater": 500},
-        "RANGE": 2000,
-    }
 
     def __init__(self,
                  design_variables: np.ndarray) -> None:
@@ -171,23 +132,94 @@ class GAABenchmark:
         self.design_variables = design_variables
 
 
-    def evaluate(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def evaluate(self,
+                 constraint_targets: Optional[Dict[str, Any]] = None
+                 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Evaluate the GAA problem for design solution(s).
 
+        Args:
+            constraint_targets: Optional[Dict[str, Any]]
+                Dictionary of constraint limits.
+                If not provided, defaults to CONSTRAINT_LIMITS from utils.py.
+
         Returns:
-            Tuple of (objectives, constraints):
+            Tuple of (objectives, constraints, summed_CV):
             - objectives: np.ndarray, shape (N, 10) — 10 objectives per solution
             - constraints: np.ndarray, shape (N, 18) — 18 constraint violations per solution
             - summed_CV: np.ndarray, shape (N,) — sum of constraint violations per solution
         """
-
         # Vectorised evaluation pipeline
         scaled_vars = self._scale_variables(self.design_variables)
         response_vars = self._get_response_variables(scaled_vars)
         objectives = self._calculate_objectives(response_vars, scaled_vars)
-        constraints, summed_CV = self._calculate_constraints(response_vars)
+
+        # Validate the user-supplied constraint targets before using them
+        validated_constraint_targets = self._validate_constraint_targets(constraint_targets)
+        
+        # Calculate the constraints using the user-supplied (or default) targets
+        constraints, summed_CV = self._calculate_constraints(response_vars,
+                                                             validated_constraint_targets)
         return objectives, constraints, summed_CV
+
+
+    @staticmethod
+    def _validate_constraint_targets(
+            constraint_targets: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Validate user-provided constraint limits."""
+
+        normalised_targets: Dict[str, Any] = {}
+
+        if constraint_targets is None:
+            # If no targets are provided simply use the defaults from utils.py
+            return CONSTRAINT_LIMITS
+
+
+        if not isinstance(constraint_targets, dict):
+            raise ValueError(
+                "constraint_targets must be a dict with keys "
+                "['NOISE', 'WEMP', 'DOC', 'ROUGH', 'WFUEL', 'RANGE']"
+            )
+
+        expected_keys = {"NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "RANGE"}
+        missing_keys = expected_keys - set(constraint_targets.keys())
+        unknown_keys = set(constraint_targets.keys()) - expected_keys
+
+        if missing_keys:
+            raise ValueError(f"constraint_targets is missing required keys: {missing_keys}")
+        if unknown_keys:
+            raise ValueError(f"constraint_targets contains unknown keys: {unknown_keys}")
+
+        for key in ["NOISE", "WEMP", "DOC", "ROUGH", "RANGE"]:
+            value = float(constraint_targets[key])
+            if not np.isfinite(value) or value <= 0:
+                raise ValueError(f"constraint_targets['{key}'] must be > 0, got {value}")
+            normalised_targets[key] = value
+
+        wfuel_limits_raw = constraint_targets["WFUEL"]
+        variant_names = {"2-seater", "4-seater", "6-seater"}
+
+        if not isinstance(wfuel_limits_raw, dict):
+            raise ValueError(
+                "constraint_targets['WFUEL'] must be a dict with keys "
+                "['2-seater', '4-seater', '6-seater']"
+            )
+
+        missing_wfuel_keys = variant_names - set(wfuel_limits_raw.keys())
+        if missing_wfuel_keys:
+            raise ValueError("constraint_targets['WFUEL'] is missing variant keys: "
+                             f"{missing_wfuel_keys}")
+
+        wfuel_limits: Dict[str, float] = {}
+        for variant_name in variant_names:
+            value = float(wfuel_limits_raw[variant_name])
+            if not np.isfinite(value) or value <= 0:
+                raise ValueError(f"constraint_targets['WFUEL']['{variant_name}'] must be > 0, got {wfuel_limits_raw[variant_name]}")
+
+            wfuel_limits[variant_name] = value
+        normalised_targets["WFUEL"] = wfuel_limits
+
+        return normalised_targets
 
 
     @staticmethod
@@ -374,16 +406,22 @@ class GAABenchmark:
 
 
     def _calculate_constraints(self,
-                               response_vars_all: Tuple[np.ndarray, np.ndarray, np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+                               response_vars_all: Tuple[np.ndarray, np.ndarray, np.ndarray],
+                               constraint_targets: Optional[Dict[str, Any]] = None) -> Tuple[np.ndarray, np.ndarray]:
         """
         Vectorised constraint violation calculation for all solutions.
 
         Args:
             response_vars_all: Tuple of 3 arrays, each (N, 9)
+            constraint_targets: Dict[str, Any]
+                Dictionary of constraint limits for each response variable.
+                If not provided, defaults to CONSTRAINT_LIMITS from utils.py.
 
         Returns:
             Tuple of np.ndarray, shape (N, 18) and np.ndarray shape (N,)
         """
+
+        constraint_targets = constraint_targets if constraint_targets is not None else CONSTRAINT_LIMITS
 
         constraints = np.zeros((self.design_variables.shape[0], 18))
         response_names = ["NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "PURCH", "RANGE", "LDMAX", "VCMAX"]
@@ -396,38 +434,38 @@ class GAABenchmark:
 
             # NOISE constraint
             noise_idx = response_names.index("NOISE")
-            noise_cv = (responses[:, noise_idx] - self.CONSTRAINT_LIMITS["NOISE"]) / self.CONSTRAINT_LIMITS["NOISE"]
+            noise_cv = (responses[:, noise_idx] - constraint_targets["NOISE"]) / constraint_targets["NOISE"]
             constraints[:, constraint_idx] = np.maximum(0, noise_cv)
             constraint_idx += 1
 
             # WEMP constraint
             wemp_idx = response_names.index("WEMP")
-            wemp_cv = (responses[:, wemp_idx] - self.CONSTRAINT_LIMITS["WEMP"]) / self.CONSTRAINT_LIMITS["WEMP"]
+            wemp_cv = (responses[:, wemp_idx] - constraint_targets["WEMP"]) / constraint_targets["WEMP"]
             constraints[:, constraint_idx] = np.maximum(0, wemp_cv)
             constraint_idx += 1
 
             # DOC constraint
             doc_idx = response_names.index("DOC")
-            doc_cv = (responses[:, doc_idx] - self.CONSTRAINT_LIMITS["DOC"]) / self.CONSTRAINT_LIMITS["DOC"]
+            doc_cv = (responses[:, doc_idx] - constraint_targets["DOC"]) / constraint_targets["DOC"]
             constraints[:, constraint_idx] = np.maximum(0, doc_cv)
             constraint_idx += 1
 
             # ROUGH constraint
             rough_idx = response_names.index("ROUGH")
-            rough_cv = (responses[:, rough_idx] - self.CONSTRAINT_LIMITS["ROUGH"]) / self.CONSTRAINT_LIMITS["ROUGH"]
+            rough_cv = (responses[:, rough_idx] - constraint_targets["ROUGH"]) / constraint_targets["ROUGH"]
             constraints[:, constraint_idx] = np.maximum(0, rough_cv)
             constraint_idx += 1
 
             # WFUEL constraint
             wfuel_idx = response_names.index("WFUEL")
-            wfuel_limit = self.CONSTRAINT_LIMITS["WFUEL"][variant_name]
+            wfuel_limit = constraint_targets["WFUEL"][variant_name]
             wfuel_cv = (responses[:, wfuel_idx] - wfuel_limit) / wfuel_limit
             constraints[:, constraint_idx] = np.maximum(0, wfuel_cv)
             constraint_idx += 1
 
             # RANGE constraint
             range_idx = response_names.index("RANGE")
-            range_cv = -(responses[:, range_idx] - self.CONSTRAINT_LIMITS["RANGE"]) / self.CONSTRAINT_LIMITS["RANGE"]
+            range_cv = -(responses[:, range_idx] - constraint_targets["RANGE"]) / constraint_targets["RANGE"]
             constraints[:, constraint_idx] = np.maximum(0, range_cv)
             constraint_idx += 1
 
@@ -441,6 +479,7 @@ class GAABenchmark:
 # Example usage
 if __name__ == "__main__":
     import time
+    from GAAFpy.utils import VARIABLE_BOUNDS
 
     print("=" * 70)
     print("GAA benchmark problem - test input and evaluation")
@@ -482,9 +521,11 @@ if __name__ == "__main__":
     design_vectors = np.random.rand(n_solutions, 27)
 
     # Scale to valid ranges
-    for i, (lower, upper) in enumerate(GAABenchmark.VARIABLE_BOUNDS):
-        design_vectors[:, i] = lower + design_vectors[:, i] * (upper - lower)
+    uppers = np.asarray(VARIABLE_BOUNDS[1], dtype=float)
+    lowers = np.asarray(VARIABLE_BOUNDS[0], dtype=float)
+    design_vectors = lowers + design_vectors * (uppers - lowers)
 
+    # Perform batch analysis
     gaa_batch = GAABenchmark(design_vectors)
     start_time = time.time()
     objectives_batch, constraints_batch, summed_CV_batch = gaa_batch.evaluate()
