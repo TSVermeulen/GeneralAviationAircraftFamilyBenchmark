@@ -25,19 +25,19 @@ pip install gaafpy
 A simple example, integrating the GAAFpy family implementation into a Pymoo NSGAII optimisation problem, using vectorised evaluation, is shown in the below example:
 
 '''python
-# Import 3rd party libraries
+\# Import 3rd party libraries
 import numpy as np
 from pymoo.core.problem import Problem
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.termination import get_termination
 from pymoo.optimize import minimize
 
-# Import the relevant GAAFpy classes
+\# Import the relevant GAAFpy classes
 from GAAFpy.family import GAABenchmark
 from GAAFpy.utils import VARIABLE_BOUNDS
 
 
-# Define the problem class for the GAA benchmark, inheriting from Pymoo's Problem class
+\# Define the problem class for the GAA benchmark, inheriting from Pymoo's Problem class
 class GAABenchmarkProblem(Problem):
     """ 
     GAA benchmark Pymoo problem definition with 27 design variables, 
@@ -81,15 +81,15 @@ class GAABenchmarkProblem(Problem):
         out["G"] = constraints
 
 
-# Construct the problem and algorithm, using mostly default operators for NSGA-II
+\# Construct the problem and algorithm, using mostly default operators for NSGA-II
 problem = GAABenchmarkProblem()
 algorithm = NSGA2(pop_size=1000,
                   eliminate_duplicates=True)  
     
-# Define termination after 100 generations
+\# Define termination after 100 generations
 termination = get_termination('n_gen', 100)
 
-# Run the optimisation and print the best solutions found
+\# Run the optimisation and print the best solutions found
 res = minimize(problem,
                algorithm,
                termination,
