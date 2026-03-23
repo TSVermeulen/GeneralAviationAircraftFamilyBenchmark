@@ -146,7 +146,7 @@ class AircraftVariant:
 
         Returns:
             Tuple of (objectives, constraints, summed_CV):
-            - objectives: np.ndarray, shape (N, 10)
+            - objectives: np.ndarray, shape (N, 9)
             - constraints: np.ndarray, shape (N, 6)
             - summed_CV: np.ndarray, shape (N,)
         """

@@ -78,7 +78,7 @@ class GAAVariantBenchmarkProblem(Problem):
         benchmark = AircraftVariant(design_vars=x,
                                     variant_index=VARIANT_TYPE)
         
-        objectives, constraints, combined_CV = benchmark.evaluate()
+        objectives, constraints, _combined_CV = benchmark.evaluate()
 
         # Objectives need to be formatted to handle the 
         # minimisation & maximisation objectives
