@@ -345,8 +345,7 @@ if __name__ == "__main__":
     design_vectors = lowers + design_vectors * (uppers - lowers)
 
     # Instantiate class
-    variant = AircraftVariant(variant_name=variant, 
-                              design_vars=design_vectors, 
+    variant = AircraftVariant(design_vars=design_vectors, 
                               variant_index=variant_idx)
     
     variant.calculate_response_variables()
