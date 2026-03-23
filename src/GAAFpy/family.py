@@ -75,11 +75,11 @@ Changelog:
         Java implementation.
 - V1.1: Cleaned up code, split out modules. Prepared for package release.
 - V1.1.5: Moved variable bounds to utils. Moved constraint limits to utils and 
-          made them optional inputs for more flexible usage. 
+          made them optional inputs for more flexible usage. Cleaned up code. 
 """
 
 # Import standard libraries
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 
 # Import 3rd party libraries
 import numpy as np
@@ -133,10 +133,15 @@ class GAABenchmark:
 
 
     def evaluate(self,
-                 constraint_targets: Dict[str, Any] | None = None
+                 constraint_targets: Optional[Dict[str, Any]] = None
                  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Evaluate the GAA problem for design solution(s).
+
+        Args:
+            constraint_targets: Optional[Dict[str, Any]]
+                Dictionary of constraint limits.
+                If not provided, defaults to CONSTRAINT_LIMITS from utils.py.
 
         Returns:
             Tuple of (objectives, constraints):
@@ -144,15 +149,66 @@ class GAABenchmark:
             - constraints: np.ndarray, shape (N, 18) — 18 constraint violations per solution
             - summed_CV: np.ndarray, shape (N,) — sum of constraint violations per solution
         """
-
         # Vectorised evaluation pipeline
         scaled_vars = self._scale_variables(self.design_variables)
         response_vars = self._get_response_variables(scaled_vars)
         objectives = self._calculate_objectives(response_vars, scaled_vars)
-        constraints, summed_CV = self._calculate_constraints(
-            response_vars,
-            constraint_targets if constraint_targets is not None else CONSTRAINT_LIMITS)
+
+        # Validate the user-supplied constraint targets before using them
+        validated_constraint_targets = self._validate_constraint_targets(constraint_targets)
+        
+        # Calculate the constraints using the user-supplied (or default) targets
+        constraints, summed_CV = self._calculate_constraints(response_vars,
+                                                             validated_constraint_targets)
         return objectives, constraints, summed_CV
+
+
+    @staticmethod
+    def _validate_constraint_targets(
+            constraint_targets: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Validate user-provided constraint limits."""
+
+        if constraint_targets is None:
+            # If no targets are provided simply use the defaults from utils.py
+            return CONSTRAINT_LIMITS
+
+
+        if not isinstance(constraint_targets, dict):
+            raise ValueError(
+                "constraint_targets must be a dict with keys "
+                "['NOISE', 'WEMP', 'DOC', 'ROUGH', 'WFUEL', 'RANGE']"
+            )
+
+        expected_keys = {"NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "RANGE"}
+        missing_keys = expected_keys - set(constraint_targets.keys())
+
+        if missing_keys:
+            raise ValueError(f"constraint_targets is missing required keys: {missing_keys}")
+
+        for key in ["NOISE", "WEMP", "DOC", "ROUGH", "RANGE"]:
+            value = float(constraint_targets[key])
+            if value <= 0:
+                raise ValueError(f"constraint_targets['{key}'] must be > 0, got {value}")
+            
+        wfuel_limits: Dict[str, float] = constraint_targets["WFUEL"]
+        variant_names = {"2-seater", "4-seater", "6-seater"}
+
+        if not isinstance(wfuel_limits, dict):
+            raise ValueError(
+                "constraint_targets['WFUEL'] must be a dict with keys "
+                "['2-seater', '4-seater', '6-seater']"
+            )
+
+        missing_wfuel_keys = variant_names - set(wfuel_limits.keys())
+        if missing_wfuel_keys:
+            raise ValueError("constraint_targets['WFUEL'] is missing variant keys: "
+                             f"{missing_wfuel_keys}")
+
+        for variant_name in variant_names:
+            if wfuel_limits[variant_name] <=0:
+                raise ValueError(f"constraint_targets['WFUEL']['{variant_name}'] must be > 0, got {wfuel_limits[variant_name]}")
+
+        return constraint_targets
 
 
     @staticmethod
@@ -340,7 +396,7 @@ class GAABenchmark:
 
     def _calculate_constraints(self,
                                response_vars_all: Tuple[np.ndarray, np.ndarray, np.ndarray],
-                               constraint_targets: Dict[str, Any] = CONSTRAINT_LIMITS) -> Tuple[np.ndarray, np.ndarray]:
+                               constraint_targets: Optional[Dict[str, Any]] = None) -> Tuple[np.ndarray, np.ndarray]:
         """
         Vectorised constraint violation calculation for all solutions.
 
@@ -353,6 +409,8 @@ class GAABenchmark:
         Returns:
             Tuple of np.ndarray, shape (N, 18) and np.ndarray shape (N,)
         """
+
+        constraint_targets = constraint_targets if constraint_targets is not None else CONSTRAINT_LIMITS
 
         constraints = np.zeros((self.design_variables.shape[0], 18))
         response_names = ["NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "PURCH", "RANGE", "LDMAX", "VCMAX"]
