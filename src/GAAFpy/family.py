@@ -168,6 +168,8 @@ class GAABenchmark:
             constraint_targets: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """Validate user-provided constraint limits."""
 
+        normalised_targets: Dict[str, Any] = {}
+
         if constraint_targets is None:
             # If no targets are provided simply use the defaults from utils.py
             return CONSTRAINT_LIMITS
@@ -187,28 +189,34 @@ class GAABenchmark:
 
         for key in ["NOISE", "WEMP", "DOC", "ROUGH", "RANGE"]:
             value = float(constraint_targets[key])
-            if value <= 0:
+            if not np.isfinite(value) or value <= 0:
                 raise ValueError(f"constraint_targets['{key}'] must be > 0, got {value}")
-            
-        wfuel_limits: Dict[str, float] = constraint_targets["WFUEL"]
+            normalised_targets[key] = value
+
+        wfuel_limits_raw = constraint_targets["WFUEL"]
         variant_names = {"2-seater", "4-seater", "6-seater"}
 
-        if not isinstance(wfuel_limits, dict):
+        if not isinstance(wfuel_limits_raw, dict):
             raise ValueError(
                 "constraint_targets['WFUEL'] must be a dict with keys "
                 "['2-seater', '4-seater', '6-seater']"
             )
 
-        missing_wfuel_keys = variant_names - set(wfuel_limits.keys())
+        missing_wfuel_keys = variant_names - set(wfuel_limits_raw.keys())
         if missing_wfuel_keys:
             raise ValueError("constraint_targets['WFUEL'] is missing variant keys: "
                              f"{missing_wfuel_keys}")
 
+        wfuel_limits: Dict[str, float] = {}
         for variant_name in variant_names:
-            if float(wfuel_limits[variant_name]) <=0:
-                raise ValueError(f"constraint_targets['WFUEL']['{variant_name}'] must be > 0, got {wfuel_limits[variant_name]}")
+            value = float(wfuel_limits_raw[variant_name])
+            if not np.isfinite(value) or value <= 0:
+                raise ValueError(f"constraint_targets['WFUEL']['{variant_name}'] must be > 0, got {wfuel_limits_raw[variant_name]}")
 
-        return constraint_targets
+            wfuel_limits[variant_name] = value
+        normalised_targets["WFUEL"] = wfuel_limits
+
+        return normalised_targets
 
 
     @staticmethod

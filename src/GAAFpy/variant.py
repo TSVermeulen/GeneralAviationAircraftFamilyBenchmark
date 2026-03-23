@@ -311,18 +311,22 @@ if __name__ == "__main__":
     from GAAFpy.utils import VARIABLE_BOUNDS
 
     # Construct sample design vector for testing
+    variant = "4-seater"
+    variant_idx = 1
     n_solutions = 1
     design_vectors = np.random.rand(n_solutions, 9)[0]  # A variant has 9 dvars
 
     # Scale to valid ranges
-    uppers = np.asarray(VARIABLE_BOUNDS[1][:9], dtype=float)
-    lowers = np.asarray(VARIABLE_BOUNDS[0][:9], dtype=float)
+    start = variant_idx * 9
+    end = start + 9
+    uppers = np.asarray(VARIABLE_BOUNDS[1][start:end], dtype=float)
+    lowers = np.asarray(VARIABLE_BOUNDS[0][start:end], dtype=float)
     design_vectors = lowers + design_vectors * (uppers - lowers)
 
     # Instantiate class
-    variant = AircraftVariant(variant_name="4-seater", 
+    variant = AircraftVariant(variant_name=variant, 
                               design_vars=design_vectors, 
-                              variant_index=1)
+                              variant_index=variant_idx)
     
     variant.calculate_response_variables()
     print(f"Response variables for {variant.name} variant:")
