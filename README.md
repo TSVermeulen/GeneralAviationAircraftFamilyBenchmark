@@ -112,9 +112,9 @@ print(f"F = {res.F}")
 print(f"G = {res.G}")
 ```
 
-## Verification and Validation
+## Validation
 
-Verification and validation of the implemented GAAFpy package was done using the outputs from the provided Example Java file in the MOEA RealWorldBenchmarks repository.
+Validation of the implemented GAAFpy package was done using the outputs from the provided Example Java file in the MOEA RealWorldBenchmarks repository.
 This example outputs 100 solutions to the GAA problem obtained using the NSGAII algorithm after 10,000 generations.
 The resulting validation report shows a maximum relative difference of 3.33e-06, a mean relative difference of 1.79e-07, and a std dev of differences of 3.69e-07.
 For each of the objectives, the validation performance is summarised in the below table:
@@ -133,7 +133,7 @@ For each of the objectives, the validation performance is summarised in the belo
 | PFPF         | 3.33e-06                  | 4.24e-07                  |
 
 The 100 solutions obtained from the MOEA framework show zero constraint violations across the 18 constraints present in the problem.
-This behaviour is replicated by this Python implementation too.
+This behaviour is replicated by this Python implementation.
 
 ## Community Guidelines
 

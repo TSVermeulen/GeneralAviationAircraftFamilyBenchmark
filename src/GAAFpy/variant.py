@@ -60,8 +60,8 @@ Versioning
 ----------
 @author: T.S. Vermeulen
 @email: T.S.Vermeulen@tudelft.nl
-@version: 1.1
-@date (dd-mm-yyyy): 19-03-2026
+@version: 1.1.5
+@date (dd-mm-yyyy): 23-03-2026
 
 Changelog:
 - V1.0: Initial version. Tested to function for both single solution and
@@ -70,22 +70,22 @@ Changelog:
 - V1.1: Improved error handling and documentation. Split out the GAABenchmark 
         class into a separate module (gaa.py) to improve modularity and 
         maintainability.
+- V1.1.5: Enabled vectorised evaluation. Cleaned up module. 
 """
-
-# Standard library imports
-from typing import Dict, Any
-
-# 3rd party imports
-import numpy as np
-
-# Module imports
-from .utils import SCALING_PARAMS, load_rsm_coefficients
 
 # Module Constants
 __author__ = "Thomas Stephan Vermeulen"
 __copyright__ = "Copyright 2026, all rights reserved"
 __status__ = "Release"
 
+# Standard library imports
+from typing import Dict, Any, ClassVar, List, Tuple
+
+# 3rd party imports
+import numpy as np
+
+# Module imports
+from .utils import SCALING_PARAMS, load_rsm_coefficients, CONSTRAINT_LIMITS 
 
 # Concrete Classes
 
@@ -96,44 +96,87 @@ class AircraftVariant:
     variant.
     """
 
-    def __init__(self, variant_name: str,
+    RESPONSE_NAMES: ClassVar[List[str]] = [
+        "NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "PURCH", "RANGE", "LDMAX", "VCMAX",
+    ]
+    VARIANT_NAMES: ClassVar[List[str]] = ["2-seater", "4-seater", "6-seater"]
+
+
+    def __init__(self,
                  design_vars: np.ndarray,
                  variant_index: int) -> None:
         """
         Initialise an aircraft variant.
 
         Args:
-            variant_name: str,
-                Name of the variant (e.g., "2-seater", "4-seater", "6-seater")
             design_vars: np.ndarray,
                 Array of 9 design variables (raw/unscaled values)
             variant_index: int,
                 Index for the variant (0 for 2-seater, 1 for 4-seater, 2 for 6-seater)
         """
 
-        self.name = variant_name
-        self.variant_index = variant_index
-        self.design_vars_raw = design_vars
+        # Validate variant index and set the variant name
+        if not 0 <= variant_index < len(self.VARIANT_NAMES):
+            raise ValueError(f"Invalid variant index {variant_index}. "
+                             f"Must be 0, 1, or 2.")
+        self.name = self.VARIANT_NAMES[variant_index]
+    
+        # Validate design variables and reshape if needed
+        design_vars = np.asarray(design_vars, dtype=float)
+        if design_vars.ndim == 1:
+            if design_vars.shape[0] != 9:
+                raise ValueError(f"1D array must have exactly 9 elements, "
+                                 f"got {design_vars.shape[0]}")
+            design_vars = design_vars.reshape(1, -1)
+        elif design_vars.ndim == 2:
+            if design_vars.shape[1] != 9:
+                raise ValueError(f"2D array must have 9 columns, "
+                                 f"got {design_vars.shape[1]}")
+        else:
+            raise ValueError(f"design_vars must be 1D or 2D, "
+                             f"got {design_vars.ndim}D")
+
+        # Scale the design variables to the normalised space used by the RMSs
         self.scaled_vars = self._scale_design_variables(design_vars)
-        self.response_vars: Dict[str, float] = {}
+
+
+    def evaluate(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Evaluate the aircraft variant.
+
+        Returns:
+            Tuple of (objectives, constraints, summed_CV):
+            - objectives: np.ndarray, shape (N, 10)
+            - constraints: np.ndarray, shape (N, 6)
+            - summed_CV: np.ndarray, shape (N,)
+        """
+
+        # Calculate the RSM response variables for the design solution(s)
+        response_vars = self._get_response_variables(self.scaled_vars)
+
+        # Use the response variables to compute the objectives and constraints
+        objectives = self._calculate_objectives(response_vars)
+        constraints, summed_cv = self._calculate_constraints(response_vars)
+
+        return objectives, constraints, summed_cv
 
 
     @staticmethod
-    def _scale_design_variables(raw_vars: np.ndarray) -> Dict[str, float]:
+    def _scale_design_variables(raw_vars: np.ndarray) -> np.ndarray:
         """
-        Scale raw design variables to normalised space.
+        Scale the raw design variables to the normalised space.
 
         Args:
             raw_vars: np.ndarray
-                Raw design variables
+                Array of the raw design variables
 
         Returns:
-            Dictionary of scaled design variables
+            Scaled design variables of shape (N, 9)
         """
 
-        scaled: Dict[str, float] = {}
-        for i, (name, center, scale) in enumerate(SCALING_PARAMS):
-            scaled[name] = float((raw_vars[i] - center) / scale)
+        scaled = raw_vars.copy()
+        for i, (_, center, scale) in enumerate(SCALING_PARAMS):
+            scaled[:, i] = (raw_vars[:, i] - center) / scale
 
         return scaled
 
@@ -144,66 +187,100 @@ class AircraftVariant:
         Writes all response variables to self.response_vars dictionary.
         """
 
-        v = self.scaled_vars
+        responses = self._get_response_variables(self.scaled_vars)
+        self.response_vars = {}
 
-        # Extract scaled variables for brevity
-        cspd = v["CSPD"]
-        ar = v["AR"]
-        sweep = v["SWEEP"]
-        dprop = v["DPROP"]
-        wingld = v["WINGLD"]
-        af = v["AF"]
-        seatw = v["SEATW"]
-        elodt = v["ELODT"]
-        taper = v["TAPER"]
+        for response_idx, response_name in enumerate(self.RESPONSE_NAMES):
+            values = responses[:, response_idx]
+            self.response_vars[response_name] = (
+                float(values[0]) if values.shape[0] == 1 else values
+            )
 
-        # Get variant-specific coefficients
+
+    def _get_response_variables(self, scaled_vars: np.ndarray) -> np.ndarray:
+        """
+        Calculate all response variables for all provided solutions.
+
+        Args:
+            scaled_vars: np.ndarray, shape (N, 9)
+
+        Returns:
+            np.ndarray, shape (N, 9)
+        """
+
         coeffs = self._get_response_surface_coefficients()
+        responses = np.zeros((scaled_vars.shape[0], len(self.RESPONSE_NAMES)))
 
-        # Calculate NOISE
-        self.response_vars["NOISE"] = self._evaluate_rsm(
-            coeffs["NOISE"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
+        for response_idx, response_name in enumerate(self.RESPONSE_NAMES):
+            responses[:, response_idx] = self._evaluate_rsm(coeffs[response_name], scaled_vars)
 
-        # Calculate WEMP (Empty Weight)
-        self.response_vars["WEMP"] = self._evaluate_rsm(
-            coeffs["WEMP"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
+        return responses
 
-        # Calculate DOC (Direct Operating Cost)
-        self.response_vars["DOC"] = self._evaluate_rsm(
-            coeffs["DOC"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
 
-        # Calculate ROUGH (Ride Roughness)
-        self.response_vars["ROUGH"] = self._evaluate_rsm(
-            coeffs["ROUGH"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
+    def _calculate_objectives(self, response_vars: np.ndarray) -> np.ndarray:
+        """
+        Calculate objectives for the variant.
 
-        # Calculate WFUEL (Fuel Weight)
-        self.response_vars["WFUEL"] = self._evaluate_rsm(
-            coeffs["WFUEL"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
+        Args:
+            response_vars: np.ndarray, shape (N, 9)
 
-        # Calculate PURCH (Purchase Cost)
-        self.response_vars["PURCH"] = self._evaluate_rsm(
-            coeffs["PURCH"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
+        Returns:
+            np.ndarray, shape (N, 10)
+        """
 
-        # Calculate RANGE
-        self.response_vars["RANGE"] = self._evaluate_rsm(
-            coeffs["RANGE"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
 
-        # Calculate LDMAX (Maximum Lift-to-Drag Ratio)
-        self.response_vars["LDMAX"] = self._evaluate_rsm(
-            coeffs["LDMAX"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
+        n_solutions = response_vars.shape[0]
+        objectives = np.zeros((n_solutions, 10))
+        objectives[:, :9] = response_vars
 
-        # Calculate VCMAX (Maximum Cruise Speed)
-        self.response_vars["VCMAX"] = self._evaluate_rsm(
-            coeffs["VCMAX"], cspd, ar, sweep, dprop, wingld, af, seatw, elodt, taper
-        )
+        # Platform penalty does not exist for a single variant, so we set it 
+        # to zero
+        objectives[:, 9] = 0.0
+
+        return objectives
+
+
+    def _calculate_constraints(self, response_vars: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Calculate constraint violations for this variant.
+
+        Args:
+            response_vars: np.ndarray, shape (N, 9)
+
+        Returns:
+            Tuple of np.ndarray, shape (N, 6) and np.ndarray shape (N,)
+        """
+
+        constraints = np.zeros((response_vars.shape[0], 6))
+
+        noise_idx = self.RESPONSE_NAMES.index("NOISE")
+        noise_cv = (response_vars[:, noise_idx] - CONSTRAINT_LIMITS["NOISE"]) / CONSTRAINT_LIMITS["NOISE"]
+        constraints[:, 0] = np.maximum(0, noise_cv)
+
+        wemp_idx = self.RESPONSE_NAMES.index("WEMP")
+        wemp_cv = (response_vars[:, wemp_idx] - CONSTRAINT_LIMITS["WEMP"]) / CONSTRAINT_LIMITS["WEMP"]
+        constraints[:, 1] = np.maximum(0, wemp_cv)
+
+        doc_idx = self.RESPONSE_NAMES.index("DOC")
+        doc_cv = (response_vars[:, doc_idx] - CONSTRAINT_LIMITS["DOC"]) / CONSTRAINT_LIMITS["DOC"]
+        constraints[:, 2] = np.maximum(0, doc_cv)
+
+        rough_idx = self.RESPONSE_NAMES.index("ROUGH")
+        rough_cv = (response_vars[:, rough_idx] - CONSTRAINT_LIMITS["ROUGH"]) / CONSTRAINT_LIMITS["ROUGH"]
+        constraints[:, 3] = np.maximum(0, rough_cv)
+
+        wfuel_idx = self.RESPONSE_NAMES.index("WFUEL")
+        wfuel_limit = CONSTRAINT_LIMITS["WFUEL"][self.name]
+        wfuel_cv = (response_vars[:, wfuel_idx] - wfuel_limit) / wfuel_limit
+        constraints[:, 4] = np.maximum(0, wfuel_cv)
+
+        range_idx = self.RESPONSE_NAMES.index("RANGE")
+        range_cv = -(response_vars[:, range_idx] - CONSTRAINT_LIMITS["RANGE"]) / CONSTRAINT_LIMITS["RANGE"]
+        constraints[:, 5] = np.maximum(0, range_cv)
+
+        summed_cv = np.sum(constraints, axis=1)
+
+        return constraints, summed_cv
 
 
     def _get_response_surface_coefficients(self) -> dict:
@@ -214,37 +291,21 @@ class AircraftVariant:
             Dictionary with RSM coefficients for each response variable
         """
 
-        variant_names = ["2-seater", "4-seater", "6-seater"]
-        if not 0 <= self.variant_index < len(variant_names):
-            raise ValueError(
-                f"Invalid variant index {self.variant_index}."
-                f"Must be 0, 1, or 2."
-                )
-        variant_key = variant_names[self.variant_index]
-
         # Load coefficients from external file (cached at module level)
         all_coefficients = load_rsm_coefficients()
 
-        if variant_key not in all_coefficients:
+        if self.name not in all_coefficients:
             raise ValueError(
-                f"Coefficients not found for variant '{variant_key}'. "
+                f"Coefficients not found for variant '{self.name}'. "
                 f"Available variants: {list(all_coefficients.keys())}"
             )
 
-        return all_coefficients[variant_key]
+        return all_coefficients[self.name]
 
 
     @staticmethod
     def _evaluate_rsm(coeffs: Dict[str, Any],
-                      cspd: float,
-                      ar: float,
-                      sweep: float,
-                      dprop: float,
-                      wingld: float,
-                      af: float,
-                      seatw: float,
-                      elodt: float,
-                      taper: float) -> float:
+                      variant_vars: np.ndarray) -> np.ndarray:
         """
         Evaluate response surface model polynomial.
 
@@ -252,56 +313,39 @@ class AircraftVariant:
             coeffs: Dict[str, Any],
                 Coefficient dictionary with linear, interaction,
                 and quadratic terms.
-            cspd: float,
-                Scaled cruise speed design variable.
-            ar: float,
-                Scaled aspect ratio design variable.
-            sweep: float,
-                Scaled quarter-chord wing sweep design variable.
-            dprop: float,
-                Scaled propeller diameter design variable.
-            wingld: float,
-                Scaled wing loading design variable.
-            af: float,
-                Scaled propeller activity factor design variable.
-            seatw: float,
-                Scaled seat width design variable.
-            elodt: float,
-                Scaled tail cone elongation design variable.
-            taper: float,
-                Scaled wing taper ratio design variable.
+            variant_vars: np.ndarray, shape (N, 9)
+                Scaled design variables for N solutions.
 
         Returns:
-            Response variable value.
+            Response variable values for N solutions.
         """
 
-        var_dict = {
-            "CSPD": cspd,
-            "AR": ar,
-            "SWEEP": sweep,
-            "DPROP": dprop,
-            "WINGLD": wingld,
-            "AF": af,
-            "SEATW": seatw,
-            "ELODT": elodt,
-            "TAPER": taper,
-        }
+        var_names = [
+            "CSPD", "AR", "SWEEP", "DPROP", "WINGLD",
+            "AF", "SEATW", "ELODT", "TAPER",
+        ]
+        var_index = {name: idx for idx, name in enumerate(var_names)}
 
-        result = coeffs["constant"]
+        n_solutions = variant_vars.shape[0]
+        result = np.full(n_solutions, coeffs["constant"], dtype=float)
 
         # Linear terms
         for var_name, coeff in coeffs["linear"].items():
-            result += coeff * var_dict[var_name]
+            var_idx = var_index[var_name]
+            result += coeff * variant_vars[:, var_idx]
 
         # Interaction terms
         # Assumes comma-separated string keys (from JSON)
         for key, coeff in coeffs["interaction"].items():
             var1, var2 = key.split(',')
-            result += coeff * var_dict[var1] * var_dict[var2]
+            var1_idx = var_index[var1]
+            var2_idx = var_index[var2]
+            result += coeff * variant_vars[:, var1_idx] * variant_vars[:, var2_idx]
 
         # Quadratic terms
         for var_name, coeff in coeffs["quadratic"].items():
-            result += coeff * var_dict[var_name] ** 2
+            var_idx = var_index[var_name]
+            result += coeff * variant_vars[:, var_idx] ** 2
 
         return result
 
