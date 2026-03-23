@@ -31,6 +31,32 @@ jobs:
             exit 1
           fi
 
+      - name: Check version is newer than latest PyPI release
+        run: |
+          pip install --quiet packaging
+          python3 - <<'EOF'
+          import urllib.request, json, sys
+          from packaging.version import Version
+
+          package = "GAAFpy"
+          input_version = "${{ github.event.inputs.version }}"
+          url = f"https://pypi.org/pypi/{package}/json"
+          try:
+              with urllib.request.urlopen(url, timeout=10) as resp:
+                  data = json.load(resp)
+              latest = data["info"]["version"]
+              print(f"Latest PyPI release: {latest}")
+              if not (Version(input_version) > Version(latest)):
+                  print(f"Error: input version '{input_version}' must be greater than the current release '{latest}'.")
+                  sys.exit(1)
+              print(f"Version check passed: {input_version} > {latest}")
+          except urllib.error.HTTPError as e:
+              if e.code == 404:
+                  print("Package not yet published on PyPI; skipping version order check.")
+              else:
+                  raise
+          EOF
+
       - name: Update version in pyproject.toml
         run: |
           sed -i 's/^version = ".*"/version = "${{ github.event.inputs.version }}"/' pyproject.toml
