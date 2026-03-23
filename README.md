@@ -116,21 +116,23 @@ print(f"G = {res.G}")
 
 Verification and validation of the implemented GAAFpy package was done using the outputs from the provided Example Java file in the MOEA RealWorldBenchmarks repository.
 This example outputs 100 solutions to the GAA problem obtained using the NSGAII algorithm after 10,000 generations.
-The resulting validation report shows a maximum relative difference of 3.33e-06, a mean relative difference of 1.79e-07, and a std dev of differences of 3.69e-07. 
-For each of the objectives, the validation performance is summarised in the below list:
+The resulting validation report shows a maximum relative difference of 3.33e-06, a mean relative difference of 1.79e-07, and a std dev of differences of 3.69e-07.
+For each of the objectives, the validation performance is summarised in the below table:
 
-1. max_NOISE    | Max: 3.21e-08 | Mean: 1.24e-08 |
-2. max_WEMP     | Max: 2.79e-08 | Mean: 7.90e-09 |
-3. max_DOC      | Max: 2.09e-06 | Mean: 9.32e-07 |
-4. max_ROUGH    | Max: 2.68e-07 | Mean: 1.35e-07 |
-5. max_WFUEL    | Max: 1.33e-07 | Mean: 3.86e-08 |
-6. max_PURCH    | Max: 4.08e-08 | Mean: 1.20e-08 |
-7. min_RANGE    | Max: 3.90e-07 | Mean: 1.25e-07 |
-8. min_LDMAX    | Max: 1.91e-07 | Mean: 9.44e-08 |
-9. min_VCMAX    | Max: 3.05e-08 | Mean: 1.10e-08 |
-10. PFPF         | Max: 3.33e-06 | Mean: 4.24e-07 |
+| Objective    | Max Relative Difference   | Mean Relative Difference  |
+|--------------|---------------------------|---------------------------|
+| max_NOISE    | 3.21e-08                  | 1.24e-08                  |
+| max_WEMP     | 2.79e-08                  | 7.90e-09                  |
+| max_DOC      | 2.09e-06                  | 9.32e-07                  |
+| max_ROUGH    | 2.68e-07                  | 1.35e-07                  |
+| max_WFUEL    | 1.33e-07                  | 3.86e-08                  |
+| max_PURCH    | 4.08e-08                  | 1.20e-08                  |
+| min_RANGE    | 3.90e-07                  | 1.25e-07                  |
+| min_LDMAX    | 1.91e-07                  | 9.44e-08                  |
+| min_VCMAX    | 3.05e-08                  | 1.10e-08                  |
+| PFPF         | 3.33e-06                  | 4.24e-07                  |
 
-The 100 solutions obtained from the MOEA framework show zero constraint violations across the 18 constraints present in the problem. 
+The 100 solutions obtained from the MOEA framework show zero constraint violations across the 18 constraints present in the problem.
 This behaviour is replicated by this Python implementation too.
 
 ## Community Guidelines
