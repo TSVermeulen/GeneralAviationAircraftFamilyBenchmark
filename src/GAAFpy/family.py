@@ -76,6 +76,11 @@ Changelog:
 - V1.1: Cleaned up code, split out modules. Prepared for package release.
 """
 
+# Module Constants
+__author__ = "Thomas Stephan Vermeulen"
+__copyright__ = "Copyright 2026, all rights reserved"
+__status__ = "Release"
+
 # Import standard libraries
 from typing import List, Tuple, ClassVar, Dict, Any
 
