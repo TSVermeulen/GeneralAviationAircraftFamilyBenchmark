@@ -48,7 +48,7 @@ SCALING_PARAMS = [
 ]
 
 # Constraint limits
-CONSTRAINT_LIMITS  = {
+CONSTRAINT_LIMITS = {
     "NOISE": 75,
     "WEMP": 2200,
     "DOC": 80,

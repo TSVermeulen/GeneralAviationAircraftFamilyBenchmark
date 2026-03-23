@@ -144,7 +144,7 @@ class GAABenchmark:
                 If not provided, defaults to CONSTRAINT_LIMITS from utils.py.
 
         Returns:
-            Tuple of (objectives, constraints):
+            Tuple of (objectives, constraints, summed_CV):
             - objectives: np.ndarray, shape (N, 10) — 10 objectives per solution
             - constraints: np.ndarray, shape (N, 18) — 18 constraint violations per solution
             - summed_CV: np.ndarray, shape (N,) — sum of constraint violations per solution
@@ -205,7 +205,7 @@ class GAABenchmark:
                              f"{missing_wfuel_keys}")
 
         for variant_name in variant_names:
-            if wfuel_limits[variant_name] <=0:
+            if float(wfuel_limits[variant_name]) <=0:
                 raise ValueError(f"constraint_targets['WFUEL']['{variant_name}'] must be > 0, got {wfuel_limits[variant_name]}")
 
         return constraint_targets
@@ -468,7 +468,7 @@ class GAABenchmark:
 # Example usage
 if __name__ == "__main__":
     import time
-    from .utils import VARIABLE_BOUNDS
+    from GAAFpy.utils import VARIABLE_BOUNDS
 
     print("=" * 70)
     print("GAA benchmark problem - test input and evaluation")

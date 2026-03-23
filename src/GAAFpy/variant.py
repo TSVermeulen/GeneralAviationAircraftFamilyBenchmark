@@ -308,7 +308,7 @@ class AircraftVariant:
 
 if __name__ == "__main__":
     # Example usage to evaluate a single variant with test design variables
-    from .utils import VARIABLE_BOUNDS
+    from GAAFpy.utils import VARIABLE_BOUNDS
 
     # Construct sample design vector for testing
     n_solutions = 1
