@@ -54,8 +54,8 @@ VARIANT_TYPE = 0
 # Problem class
 class GAAVariantBenchmarkProblem(Problem):
     """ 
-    GAA variant benchmark Pymoo problem definition with 27 design variables, 
-    10 objectives and 18 constraints. Evaluated using vectorised evaluation,
+    GAA variant benchmark Pymoo problem definition with 9 design variables, 
+    9 objectives and 6 constraints. Evaluated using vectorised evaluation,
     where _evaluate retrieves a set of solutions
     """
 
@@ -65,7 +65,7 @@ class GAAVariantBenchmarkProblem(Problem):
         end_idx = start_idx + 9
 
         super().__init__(n_var=9, 
-                         n_obj=10,
+                         n_obj=9,
                          n_ieq_constr=6,
                          xl=np.array(VARIABLE_BOUNDS[0][start_idx:end_idx]),
                          xu=np.array(VARIABLE_BOUNDS[1][start_idx:end_idx])
