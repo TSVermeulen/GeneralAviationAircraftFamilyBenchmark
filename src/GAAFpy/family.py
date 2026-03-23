@@ -183,9 +183,12 @@ class GAABenchmark:
 
         expected_keys = {"NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "RANGE"}
         missing_keys = expected_keys - set(constraint_targets.keys())
+        unknown_keys = set(constraint_targets.keys()) - expected_keys
 
         if missing_keys:
             raise ValueError(f"constraint_targets is missing required keys: {missing_keys}")
+        if unknown_keys:
+            raise ValueError(f"constraint_targets contains unknown keys: {unknown_keys}")
 
         for key in ["NOISE", "WEMP", "DOC", "ROUGH", "RANGE"]:
             value = float(constraint_targets[key])
