@@ -20,6 +20,12 @@ The recommended method is through PyPi by running the command:
 pip install gaafpy
 ```
 
+To install the optional Pymoo multi-objective optimisation package used in the example, use:
+
+```console
+pip install -U pymoo
+```
+
 ## Example usage
 
 A simple example, integrating the GAAFpy family implementation into a Pymoo NSGA-II optimisation problem, using vectorised evaluation:
@@ -42,19 +48,18 @@ class GAABenchmarkProblem(Problem):
     """
     GAA benchmark Pymoo problem definition with 27 design variables,
     10 objectives and 18 constraints. Evaluated using vectorised evaluation,
-    where _evaluate retrieves a set of solutions
+    where the _evaluate() method retrieves a set of solutions.
     """
 
     def __init__(self) -> None:
         """Initialise problem definition"""
 
-        super().__init__(
-            n_var=27,
-            n_obj=10,
-            n_ieq_constr=18,
-            xl=np.array(VARIABLE_BOUNDS[0]),
-            xu=np.array(VARIABLE_BOUNDS[1])
-        )
+        super().__init__(n_var=27,
+                         n_obj=10,
+                         n_ieq_constr=18,
+                         xl=np.array(VARIABLE_BOUNDS[0]),
+                         xu=np.array(VARIABLE_BOUNDS[1]),
+                         )
 
     def _evaluate(self, x, out, *args, **kwargs) -> None:
         """Evaluate the problem"""
@@ -105,7 +110,7 @@ print("Best solution found:")
 print(f"X = {res.X}")
 print(f"F = {res.F}")
 print(f"G = {res.G}")
-'''
+```
 
 ## Verification and Validation
 
@@ -130,7 +135,7 @@ This behaviour is replicated by this Python implementation too.
 
 ## Community Guidelines
 
-This software is currently being maintained by me @TSVermeulen. If you find any bugs, want to contribute or have any questions, you can open a ticket here on GitHub.
+This software is currently being maintained by me @TSVermeulen. If you find any bugs, want to contribute or have any questions, you can [open an issue on GitHub](https://github.com/TSVermeulen/GeneralAviationAircraftFamilyBenchmark/issues).
 
 ## License
 
