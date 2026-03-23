@@ -152,11 +152,11 @@ class AircraftVariant:
         """
 
         # Calculate the RSM response variables for the design solution(s)
-        response_vars = self._get_response_variables(self.scaled_vars)
+        # These are equal to the objectives. 
+        objectives = self._get_response_variables(self.scaled_vars)
 
-        # Use the response variables to compute the objectives and constraints
-        objectives = self._calculate_objectives(response_vars)
-        constraints, summed_cv = self._calculate_constraints(response_vars)
+        # Use the response variables to compute the constraints
+        constraints, summed_cv = self._calculate_constraints(objectives)
 
         return objectives, constraints, summed_cv
 
@@ -215,29 +215,6 @@ class AircraftVariant:
             responses[:, response_idx] = self._evaluate_rsm(coeffs[response_name], scaled_vars)
 
         return responses
-
-
-    def _calculate_objectives(self, response_vars: np.ndarray) -> np.ndarray:
-        """
-        Calculate objectives for the variant.
-
-        Args:
-            response_vars: np.ndarray, shape (N, 9)
-
-        Returns:
-            np.ndarray, shape (N, 10)
-        """
-
-
-        n_solutions = response_vars.shape[0]
-        objectives = np.zeros((n_solutions, 10))
-        objectives[:, :9] = response_vars
-
-        # Platform penalty does not exist for a single variant, so we set it 
-        # to zero
-        objectives[:, 9] = 0.0
-
-        return objectives
 
 
     def _calculate_constraints(self, response_vars: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:

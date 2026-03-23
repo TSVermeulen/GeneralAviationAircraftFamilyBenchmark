@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-example_family.py
+example_variant.py
 =================
 
 Description
 -----------
 Example application of the GAAFpy package to solve the 
-General Aviation Aircraft (GAA) family design problem using NSGA-II.
+General Aviation Aircraft (GAA) variant design problem using NSGA-II.
 
-Implementation of the General Aviation Aircraft (GAA) Family Benchmark Problem 
-in Python. The problem involves designing three aircraft variants 
-(2-, 4-, and 6-seater) with product platform commonality constraints.
+This problem is a subpart of the GAA family design problem, where a single 
+variant is optimised in isolation. Either a 2-seater, 4-seater, or 6-seater 
+variant can be represented.
 
 Classes
 -------
-GAABenchmarkProblem
-    Class representing the GAA family design problem, inheriting from Pymoo's 
+GAAVariantBenchmarkProblem
+    Class representing the GAA variant design problem, inheriting from Pymoo's 
     Problem class.
 
 Versioning
@@ -42,35 +42,43 @@ from pymoo.termination import get_termination
 from pymoo.optimize import minimize
 
 # Import the relevant GAAFpy classes
-from GAAFpy.family import GAABenchmark
+from GAAFpy.variant import AircraftVariant
 from GAAFpy.utils import VARIABLE_BOUNDS
+
+# Define module constant which determines which variant is optimised.
+# 0 = 2-seater, 1 = 4-seater, 2 = 6-seater
+VARIANT_TYPE = 0
 
 
 # Define the problem class for the GAA benchmark, inheriting from Pymoo's 
 # Problem class
-class GAABenchmarkProblem(Problem):
+class GAAVariantBenchmarkProblem(Problem):
     """ 
-    GAA benchmark Pymoo problem definition with 27 design variables, 
+    GAA variant benchmark Pymoo problem definition with 27 design variables, 
     10 objectives and 18 constraints. Evaluated using vectorised evaluation,
     where _evaluate retrieves a set of solutions
     """
 
     def __init__(self) -> None:
         """ Initialise problem definition """
+        start_idx = VARIANT_TYPE * 9
+        end_idx = start_idx + 9
 
-        super().__init__(n_var=27, 
+        super().__init__(n_var=9, 
                          n_obj=10,
-                         n_ieq_constr=18,
-                         xl=np.array(VARIABLE_BOUNDS[0]),
-                         xu=np.array(VARIABLE_BOUNDS[1])
+                         n_ieq_constr=6,
+                         xl=np.array(VARIABLE_BOUNDS[0][start_idx:end_idx]),
+                         xu=np.array(VARIABLE_BOUNDS[1][start_idx:end_idx])
                          )
         
     def _evaluate(self, x, out, *args, **kwargs) -> None:
         """ Evaluate the problem """
 
-        # Create benchmark object and evaluate the design vector(s)
-        benchmark = GAABenchmark(x)
-        objectives, constraints, _combined_CV = benchmark.evaluate()
+        # Create variant benchmark object and evaluate the design vector(s)
+        benchmark = AircraftVariant(design_vars=x,
+                                    variant_index=VARIANT_TYPE)
+        
+        objectives, constraints, combined_CV = benchmark.evaluate()
 
         # Objectives need to be formatted to handle the 
         # minimisation & maximisation objectives
@@ -82,18 +90,17 @@ class GAABenchmarkProblem(Problem):
                                                1,   # Minimise purchase cost
                                                -1,  # Maximise range
                                                -1,  # maximise L/D
-                                               -1,  # Maximise Vcruise_max
-                                               1])  # Minimise PFPF
+                                               -1]) # Maximise Vcruise_max
+        
         objectives = objectives * objectives_sign_convention
 
         # Write the objectives and constraints to the output dictionary 
         out["F"] = objectives
         out["G"] = constraints
 
-
 if __name__ == "__main__":
     # Construct the problem and algorithm, using mostly default operators for NSGA-II
-    problem = GAABenchmarkProblem()
+    problem = GAAVariantBenchmarkProblem()
     algorithm = NSGA2(pop_size=1000,
                     eliminate_duplicates=True)  
         
@@ -109,4 +116,4 @@ if __name__ == "__main__":
                 verbose=True)
         
     print("Best solution found: \nX = %s\nF = %s\nG = %s" % (res.X, res.F, res.G))
-    
+ 
