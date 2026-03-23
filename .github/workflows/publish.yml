@@ -7,6 +7,11 @@ on:
         description: "Package version number (e.g. 1.0.0)"
         required: true
         type: string
+      dry_run:
+        description: "Dry run: validate and build only — skip publish to PyPI and tag creation"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build-and-publish:
@@ -75,12 +80,14 @@ jobs:
             { echo "Error: expected build artifacts (.whl and .tar.gz) not found in dist/"; exit 1; }
 
       - name: Publish package to PyPI
+        if: ${{ github.event.inputs.dry_run != 'true' }}
         uses: pypa/gh-action-pypi-publish@v1.12.4
         with:
           # TODO: Replace with your PyPI API token stored as a GitHub secret
           password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Create release tag
+        if: ${{ github.event.inputs.dry_run != 'true' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
