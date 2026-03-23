@@ -1,0 +1,95 @@
+name: Publish GAAFpy to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version number (e.g. 1.0.0)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run: validate and build only — skip publish to PyPI and tag creation"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-and-publish:
+    name: Build and publish GAAFpy to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate version number
+        run: |
+          if ! echo "${{ github.event.inputs.version }}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9.+_-]*)$'; then
+            echo "Error: version '${{ github.event.inputs.version }}' does not follow the expected format (e.g. 1.0.0)."
+            exit 1
+          fi
+
+      - name: Check version is newer than latest PyPI release
+        run: |
+          pip install --quiet packaging
+          python3 - <<'EOF'
+          import urllib.request, json, sys
+          from packaging.version import Version
+
+          package = "GAAFpy"
+          input_version = "${{ github.event.inputs.version }}"
+          url = f"https://pypi.org/pypi/{package}/json"
+          try:
+              with urllib.request.urlopen(url, timeout=10) as resp:
+                  data = json.load(resp)
+              latest = data["info"]["version"]
+              print(f"Latest PyPI release: {latest}")
+              if not (Version(input_version) > Version(latest)):
+                  print(f"Error: input version '{input_version}' must be greater than the current release '{latest}'.")
+                  sys.exit(1)
+              print(f"Version check passed: {input_version} > {latest}")
+          except urllib.error.HTTPError as e:
+              if e.code == 404:
+                  print("Package not yet published on PyPI; skipping version order check.")
+              else:
+                  raise
+          EOF
+
+      - name: Update version in pyproject.toml
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ github.event.inputs.version }}"/' pyproject.toml
+          grep -q '^version = "${{ github.event.inputs.version }}"' pyproject.toml || \
+            { echo "Error: version was not updated correctly in pyproject.toml"; exit 1; }
+
+      - name: Install build dependencies
+        run: python -m pip install --upgrade pip build
+
+      - name: Build package
+        run: python -m build
+
+      - name: Verify build artifacts
+        run: |
+          ls dist/*.whl dist/*.tar.gz || \
+            { echo "Error: expected build artifacts (.whl and .tar.gz) not found in dist/"; exit 1; }
+
+      - name: Publish package to PyPI
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: pypa/gh-action-pypi-publish@v1.12.4
+        with:
+          # TODO: Replace with your PyPI API token stored as a GitHub secret
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Create release tag
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ github.event.inputs.version }}"
+          git push origin "v${{ github.event.inputs.version }}"
