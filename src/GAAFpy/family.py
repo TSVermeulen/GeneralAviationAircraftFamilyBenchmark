@@ -78,6 +78,11 @@ Changelog:
           made them optional inputs for more flexible usage. Cleaned up code. 
 """
 
+# Module Constants
+__author__ = "Thomas Stephan Vermeulen"
+__copyright__ = "Copyright 2026, all rights reserved"
+__status__ = "Release"
+
 # Import standard libraries
 from typing import Tuple, Dict, Any, Optional
 

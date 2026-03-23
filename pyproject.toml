@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "GAAFpy"
-version = "1.0.0"
+version = "1.0.5"
 authors = [
   { name="Thomas Stephan Vermeulen", email="T.S.Vermeulen@tudelft.nl" },
 ]
 description = "Python implementation of the GAA family benchmark problem developed by T.W. Simpson et al."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "numpy"
 ]
