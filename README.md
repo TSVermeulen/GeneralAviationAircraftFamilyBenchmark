@@ -2,7 +2,7 @@
 
 A Python implementation of the GAA family benchmark problem developed by T.W. Simpson, W. Chen. J.K. Allen, F. Mistree, B.S. D'Souza, R. Shah, P.M. Reed, and D. Hadka.
 
-This repository is fundamentally a Python translation of the RealWorldBenchmarks implementation in the MOEA framework by Zatarain Salazar, J., Hadka, D., Reed, P., Seada, H., & Deb, K (see reference 5).
+This repository started as a Python translation of the RealWorldBenchmarks implementation in the MOEA framework by Zatarain Salazar, J., Hadka, D., Reed, P., Seada, H., & Deb, K (see reference 5).
 
 ## Requirements
 
@@ -141,7 +141,7 @@ This software is currently being maintained by me @TSVermeulen. If you find any 
 
 ## License
 
-The Benchmark problem is copyright by the respective authors. Please cite them as appropriate if using the benchmark problem.
+The Benchmark problem itself is copyright by the respective authors. Please cite them as appropriate if using the benchmark problem.
 
 ## References
 
