@@ -1,18 +1,84 @@
 # The General Aviation Aircraft Family Benchmark (GAAFpy)
 
-A Python implementation of the GAA family benchmark problem developed by T.W. Simpson, W. Chen. J.K. Allen, F. Mistree, B.S. D'Souza, R. Shah, P.M. Reed, and D. Hadka.
+A Python package of the GAA family benchmark problem developed by T.W. Simpson, W. Chen. J.K. Allen, F. Mistree, B.S. D'Souza, R. Shah, P.M. Reed, and D. Hadka.
 
 This repository started as a Python translation of the RealWorldBenchmarks implementation in the MOEA framework by Zatarain Salazar, J., Hadka, D., Reed, P., Seada, H., & Deb, K (see reference 5).
 
-## Requirements
+## Description
 
-The framework is tested to work using the following Python version and packages:
+The General Aviation Aircraft Family Benchmark concerns the design of a family of three aircraft, modeled after the Beechcraft Bonanzo B36TC. Two-, four- and six-seater variants are designed. The benchmark is used to evaluate different product family design methods. Here, product family design trades the invididual performance of each variant within a family with the family level performance. This family level performance is typically expressed in terms of R&D cost/time, manufacturing costs, OEM profit, etc. This family level performance may be improved by introducing commonality across variants, such that design elements or systems are common across the variants.
+
+Each variant in the GAA benchmark is parameterised using 9 design variables, being:
+
+![Variant parameterisation](docs/images/GAAModel.png)
+
+Our implementation of the GAA benchmark problem uses quadratic response surface models of the performance metrics present in the original problem definition (see reference 1) to reduce the computational cost. These performance metrics are the take-off noise, aircraft empty weight, direct operating cost, acquisition cost, maximum lift-to-drag ratio, maximum cruise speed, ride roughness coefficient, aircraft fuel weight, and maximum range. Some of these metrics have associated constraints defined, which are:
+
+| Metric | Unit | 2-seater | 4-seater | 6-seater |
+| --------- | --------- | --------- | --------- | --------- |
+| Maximum Take-off Noise | dB | 75 | 75 | 75 |
+| Maximum Direct Operating Cost | 1970$/hr | 80 | 80 | 80 |
+| Maximum Ride Roughness Coefficient | - | 2 | 2 | 2 |
+| Maximum Empty Weight | lb | 2200 | 2200 | 2200 |
+| Maximum Fuel Weight | lb | 450 | 475 | 500 |
+| Minimum Range | nmi | 2000 | 2000 | 2000 |
+
+Additionally, several metrics have goals defined as:
+
+| Metric | Unit | 2-seater | 4-seater | 6-seater |
+| --------- | --------- | --------- | --------- | --------- |
+| Fuel Weight | lb | 450 | 400 | 350 |
+| Empty Weight | lb | 1900 | 1950 | 2000 |
+| Direct Operating Cost | 1970$/hr | 60 | 60 | 60 |
+| Acquisition Cost | 1970$ | 41,000 | 42,000 | 43,000 |
+| Lift-to-Drag Ratio | - | 17 | 17 | 17 |
+| Cruise Speed | kts | 200 | 200 | 200 |
+| Range | nmi | 2500 | 2500 | 2500 |
+
+Combined, these make the GAA problem challenging to solve, and an interesting candidate for testing new methods and algorithms.
+
+## Repository Structure
+
+```bash
+.
+├── .gitignore
+├── docs
+│   ├── images
+│   │   └── GAAModel.png
+├── example
+│   ├── example_family.py
+│   ├── example_variant.py
+│   └── README.md
+├── LICENSE
+├── pyproject.toml
+├── README.md
+├── src/GAAFpy
+│   ├── __init__.py
+│   ├── family.py
+│   ├── rsm_coefficients.json
+│   ├── utils.py
+│   └── variant.py
+└── verification_validation
+    ├── __init__.py
+    ├── gaa_verifier_validator.py
+    ├── MOEA-GAA-output.csv
+    ├── README.md
+    └── validation_report.txt
+```
+
+The './example/' folder contains two example usages of the GAAFpy package. One for the optimisation of a single variant (either 2-, 4-, or 6-seater), and one for the optimisation of the complete family. The './verification_validation/' folder contains the code and input data used to check the implementation of the GAAFpy module against that of the MOEA framework. The validation report contained in this folder is summarised below.
+
+## Installation
+
+### Requirements
+
+The GAA benchmark package is tested to work using the following Python version and dependencies:
 
 1. Python >= 3.10
 2. Numpy
 3. (optional) Pymoo >= 0.6
 
-## Installation
+### Installation Guide
 
 The recommended method is through PyPi by running the command:
 
@@ -137,11 +203,16 @@ This behaviour is replicated by this Python implementation.
 
 ## Community Guidelines
 
-This software is currently being maintained by me @TSVermeulen. If you find any bugs, want to contribute or have any questions, you can [open an issue on GitHub](https://github.com/TSVermeulen/GeneralAviationAircraftFamilyBenchmark/issues).
+This package is currently being maintained by me @TSVermeulen. If you find any bugs, want to contribute or have any questions, you can [open an issue on GitHub](https://github.com/TSVermeulen/GeneralAviationAircraftFamilyBenchmark/issues).
+
+## Authors
+
+The code scripts provided in this repository have been developed by
+**Thomas Vermeulen** ![ORCID logo](https://info.orcid.org/wp-content/uploads/2019/11/orcid_16x16.png) [0009-0000-0182-0244](https://orcid.org/0009-0000-0182-0244), Technische Universiteit Delft
 
 ## License
 
-The Benchmark problem itself is copyright by the respective authors. Please cite them as appropriate if using the benchmark problem.
+The Benchmark problem itself is copyright by the respective authors. Please cite them as appropriate if using the benchmark problem. The GAAFpy package itself is licensed under an MIT license.
 
 ## References
 
