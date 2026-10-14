@@ -60,7 +60,7 @@ class GAABenchmarkProblem(Problem):
 
         super().__init__(n_var=27, 
                          n_obj=10,
-                         n_ieq_constr=18,
+                         n_ieq_constr=6,
                          xl=np.array(VARIABLE_BOUNDS[0]),
                          xu=np.array(VARIABLE_BOUNDS[1])
                          )

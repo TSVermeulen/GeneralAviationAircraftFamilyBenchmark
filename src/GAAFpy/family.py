@@ -518,7 +518,7 @@ class GAABenchmark:
                 variant_values.append(cv)
             constraint_columns.append(np.max(variant_values, axis=0))
         constraints = np.column_stack(constraint_columns)
-        print(constraints.shape)
+
         # Compute summed constraint violation to remain in-line with MOEA Java 
         # implementation
         summed_CV = np.sum(constraints, axis=1) 
