@@ -5,7 +5,6 @@ GAA BENCHMARK VERIFICATION/VALIDATION REPORT
 SUMMARY
 --------------------------------------------------------------------------------
 Total solutions evaluated: 100
-CSV file: C:\Users\thomasvermeule\OneDrive - Delft University of Technology\Documents\Family Design\GAABenchmarkProblem-Python\GeneralAviationAircraftFamilyBenchmark\verification_validation\MOEA-GAA-output.csv
 
 OBJECTIVES VALIDATION
 --------------------------------------------------------------------------------
@@ -38,24 +37,7 @@ OK PFPF         | Max: 3.33e-06 | Mean: 4.24e-07 | Violations: 0/100
 
 CONSTRAINTS - DETAILED STATISTICS
 --------------------------------------------------------------------------------
-OK Constr 1 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr 2 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr 3 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr 4 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr 5 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr 6 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr 7 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr 8 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr 9 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr10 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr11 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr12 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr13 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr14 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr15 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr16 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr17 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
-OK Constr18 | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
+OK Constr1 (summed CV)  | Max: 0.00e+00 | Mean: 0.00e+00 | Violations: 0/100
 
 SOLUTIONS WITH LARGEST ERRORS
 --------------------------------------------------------------------------------

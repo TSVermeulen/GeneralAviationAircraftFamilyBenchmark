@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "GAAFpy"
-version = "1.0.5"
+version = "1.1.1"
 authors = [
-  { name="Thomas Stephan Vermeulen", email="T.S.Vermeulen@tudelft.nl" },
+  { name="Thomas Stephan Vermeulen"},
 ]
 description = "Python implementation of the GAA family benchmark problem developed by T.W. Simpson et al."
 readme = "README.md"
@@ -20,7 +20,11 @@ keywords = [
     "general aviation",
     "aircraft family",
     "benchmark problem",
-    "optimization"
+    "optimization",
+    "product family",
+    "family design",
+    "product family design",
+    "product family optimization",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

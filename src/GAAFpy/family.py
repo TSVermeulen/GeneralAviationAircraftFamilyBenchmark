@@ -66,8 +66,8 @@ Versioning
 ----------
 @author: T.S. Vermeulen
 @email: T.S.Vermeulen@tudelft.nl
-@version: 1.1.5
-@date (dd-mm-yyyy): 20-03-2026
+@version: 1.1.6
+@date (dd-mm-yyyy): 12-10-2026
 
 Changelog:
 - V1.0: Initial version. Tested to function for both single solution and
@@ -76,6 +76,8 @@ Changelog:
 - V1.1: Cleaned up code, split out modules. Prepared for package release.
 - V1.1.5: Moved variable bounds to utils. Moved constraint limits to utils and 
           made them optional inputs for more flexible usage. Cleaned up code. 
+- V1.1.6: Made calculate_constraints a static method to allow for use of method 
+          outside of class
 """
 
 # Module Constants
@@ -84,13 +86,13 @@ __copyright__ = "Copyright 2026, all rights reserved"
 __status__ = "Release"
 
 # Import standard libraries
-from typing import Tuple, Dict, Any, Optional
+from typing import Tuple, Dict, Any, Optional, Set, List
 
 # Import 3rd party libraries
 import numpy as np
 
 # Import local modules
-from .utils import SCALING_PARAMS, load_rsm_coefficients, CONSTRAINT_LIMITS
+from .utils import SCALING_PARAMS, load_rsm_coefficients, CONSTRAINT_LIMITS, VARIANT_NAMES
 
 # Concrete Classes
 
@@ -106,13 +108,23 @@ class GAABenchmark:
     """
 
     def __init__(self,
-                 design_variables: np.ndarray) -> None:
+                 design_variables: np.ndarray,
+                 rsm_coefficients: Optional[Dict[str, Dict[str, Any]]] = None,
+                 degree: str = "quadratic") -> None:
         """
         Initialise the GAA benchmark problem.
 
         Args:
             design_variables: np.ndarray
                 - Array of shape (N, 27), where N is the number of solutions
+            rsm_coefficients: Optional[Dict[str, Dict[str, Any]]]
+                Optional coefficient bundle to use instead of loading the
+                default response surfaces from utils.py. This supports future
+                fidelity-specific coefficient sets without changing the
+                workflow layer.
+            degree: str
+                Highest polynomial degree to use when loading coefficients.
+                Options are "linear", "interaction", and "quadratic".
         """
 
         design_variables = np.asarray(design_variables, dtype=float)
@@ -135,6 +147,8 @@ class GAABenchmark:
             )
 
         self.design_variables = design_variables
+        self.rsm_coefficients = rsm_coefficients
+        self.degree = degree
 
 
     def evaluate(self,
@@ -163,8 +177,8 @@ class GAABenchmark:
         validated_constraint_targets = self._validate_constraint_targets(constraint_targets)
         
         # Calculate the constraints using the user-supplied (or default) targets
-        constraints, summed_CV = self._calculate_constraints(response_vars,
-                                                             validated_constraint_targets)
+        constraints, summed_CV = self.calculate_constraints(response_vars,
+                                                            validated_constraint_targets)
         return objectives, constraints, summed_CV
 
 
@@ -265,9 +279,12 @@ class GAABenchmark:
             Tuple of 3 np.ndarrays (one per variant), each shape (N, 9)
         """
 
-        coeffs_data = load_rsm_coefficients()
+        coeffs_data = self._get_response_coefficients()
         variant_names = ["2-seater", "4-seater", "6-seater"]
-        response_names = ["NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "PURCH", "RANGE", "LDMAX", "VCMAX"]
+
+        # Generate response names based on the coefficients provided to ensure
+        # Only the relevant responses are computed. 
+        response_names = list(coeffs_data[variant_names[0]].keys())
 
         responses = [np.zeros((self.design_variables.shape[0], 9)) for _ in range(3)]
 
@@ -318,23 +335,51 @@ class GAABenchmark:
                 coeff = coeffs["linear"][var_name]
                 result += coeff * variant_vars[:, var_idx]
 
-        # Interaction terms
-        # Precompute variable name to index mapping for O(1) lookups
-        var_index = {name: i for i, name in enumerate(var_names)}
+        if "interaction" not in coeffs and "quadratic" not in coeffs:
+            return result
+        elif "quadratic" not in coeffs:
+            # Interaction terms only
+            var_index = {name: i for i, name in enumerate(var_names)}
 
-        for interaction_key, coeff in coeffs["interaction"].items():
-            var1_name, var2_name = interaction_key.split(',')
-            var1_idx = var_index[var1_name]
-            var2_idx = var_index[var2_name]
-            result += coeff * variant_vars[:, var1_idx] * variant_vars[:, var2_idx]
+            for interaction_key, coeff in coeffs["interaction"].items():
+                var1_name, var2_name = interaction_key.split(',')
+                var1_idx = var_index[var1_name]
+                var2_idx = var_index[var2_name]
+                result += coeff * variant_vars[:, var1_idx] * variant_vars[:, var2_idx]
+        else:
+            # Interaction and quadratic terms
+            var_index = {name: i for i, name in enumerate(var_names)}
 
-        # Quadratic terms
-        for var_idx, var_name in enumerate(var_names):
-            if var_name in coeffs["quadratic"]:
-                coeff = coeffs["quadratic"][var_name]
-                result += coeff * variant_vars[:, var_idx] ** 2
+            # Interaction terms
+            for interaction_key, coeff in coeffs["interaction"].items():
+                var1_name, var2_name = interaction_key.split(',')
+                var1_idx = var_index[var1_name]
+                var2_idx = var_index[var2_name]
+                result += coeff * variant_vars[:, var1_idx] * variant_vars[:, var2_idx]
+
+            # Quadratic terms
+            for var_idx, var_name in enumerate(var_names):
+                if var_name in coeffs["quadratic"]:
+                    coeff = coeffs["quadratic"][var_name]
+                    result += coeff * variant_vars[:, var_idx] ** 2
 
         return result
+
+
+    def _get_response_coefficients(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get the response-surface coefficients.
+
+        Returns:
+            Dictionary of coefficients organised by variant and response name, 
+            depending on self.degree for the highest degree of polynomial to 
+            include.
+        """
+
+        if self.rsm_coefficients is not None:
+            return self.rsm_coefficients
+
+        return load_rsm_coefficients(degree=self.degree)
 
 
     def _calculate_objectives(self,
@@ -409,10 +454,11 @@ class GAABenchmark:
 
         return np.sqrt(penalties)
 
-
-    def _calculate_constraints(self,
-                               response_vars_all: Tuple[np.ndarray, np.ndarray, np.ndarray],
-                               constraint_targets: Optional[Dict[str, Any]] = None) -> Tuple[np.ndarray, np.ndarray]:
+    @staticmethod
+    def calculate_constraints(response_vars_all: Tuple[np.ndarray, np.ndarray, np.ndarray],
+                              constraint_targets: Optional[Dict[str, Any]] = None,
+                              applicable_constraints: Optional[Set[str]] = None,
+                              response_names: Optional[List[str]] = None) -> Tuple[np.ndarray, np.ndarray]:
         """
         Vectorised constraint violation calculation for all solutions.
 
@@ -421,58 +467,57 @@ class GAABenchmark:
             constraint_targets: Dict[str, Any]
                 Dictionary of constraint limits for each response variable.
                 If not provided, defaults to CONSTRAINT_LIMITS from utils.py.
+            applicable_constraints: Optional[Set[str]]
+                Set of constraint names that are applicable for the current model.
+                If not provided, all constraints are considered.
+            response_names: List[str]
+                List of response variable names corresponding to the columns in
+                the response_vars_all arrays. If not provided, defaults to the
+                standard response names used in the GAA problem.
 
         Returns:
-            Tuple of np.ndarray, shape (N, 18) and np.ndarray shape (N,)
+            Tuple of (constraints, summed_CV):
+            - constraints: np.ndarray, shape (N, M) — M applicable constraint violations
+            - summed_CV: np.ndarray, shape (N,) — sum of constraint violations per solution
         """
 
+        # Validate and set default constraint targets, applicable constraints, and response variables
         constraint_targets = constraint_targets if constraint_targets is not None else CONSTRAINT_LIMITS
+        applicable_constraints = applicable_constraints if applicable_constraints is not None else set(constraint_targets.keys())
+        response_names = response_names if response_names is not None else ["NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "PURCH", "RANGE", "LDMAX", "VCMAX"]
 
-        constraints = np.zeros((self.design_variables.shape[0], 18))
-        response_names = ["NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "PURCH", "RANGE", "LDMAX", "VCMAX"]
-        variant_names = ["2-seater", "4-seater", "6-seater"]
-        responses_list = response_vars_all
+        constraint_columns = []
 
-        constraint_idx = 0
-        for variant_idx, variant_name in enumerate(variant_names):
-            responses = responses_list[variant_idx]
-
-            # NOISE constraint
-            noise_idx = response_names.index("NOISE")
-            noise_cv = (responses[:, noise_idx] - constraint_targets["NOISE"]) / constraint_targets["NOISE"]
-            constraints[:, constraint_idx] = np.maximum(0, noise_cv)
-            constraint_idx += 1
-
-            # WEMP constraint
-            wemp_idx = response_names.index("WEMP")
-            wemp_cv = (responses[:, wemp_idx] - constraint_targets["WEMP"]) / constraint_targets["WEMP"]
-            constraints[:, constraint_idx] = np.maximum(0, wemp_cv)
-            constraint_idx += 1
-
-            # DOC constraint
-            doc_idx = response_names.index("DOC")
-            doc_cv = (responses[:, doc_idx] - constraint_targets["DOC"]) / constraint_targets["DOC"]
-            constraints[:, constraint_idx] = np.maximum(0, doc_cv)
-            constraint_idx += 1
-
-            # ROUGH constraint
-            rough_idx = response_names.index("ROUGH")
-            rough_cv = (responses[:, rough_idx] - constraint_targets["ROUGH"]) / constraint_targets["ROUGH"]
-            constraints[:, constraint_idx] = np.maximum(0, rough_cv)
-            constraint_idx += 1
-
-            # WFUEL constraint
-            wfuel_idx = response_names.index("WFUEL")
-            wfuel_limit = constraint_targets["WFUEL"][variant_name]
-            wfuel_cv = (responses[:, wfuel_idx] - wfuel_limit) / wfuel_limit
-            constraints[:, constraint_idx] = np.maximum(0, wfuel_cv)
-            constraint_idx += 1
-
-            # RANGE constraint
-            range_idx = response_names.index("RANGE")
-            range_cv = -(responses[:, range_idx] - constraint_targets["RANGE"]) / constraint_targets["RANGE"]
-            constraints[:, constraint_idx] = np.maximum(0, range_cv)
-            constraint_idx += 1
+        for constraint in ["NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "RANGE"]:
+            if constraint not in applicable_constraints:
+                continue
+            variant_values = []
+            for variant_idx, variant_name in enumerate(VARIANT_NAMES):
+                responses = response_vars_all[variant_idx]
+                if constraint == "NOISE":
+                    noise_idx = response_names.index("NOISE")
+                    cv = np.maximum(0, (responses[:, noise_idx] - constraint_targets["NOISE"]) / constraint_targets["NOISE"])
+                elif constraint == "WEMP":
+                    wemp_idx = response_names.index("WEMP")
+                    cv = np.maximum(0, (responses[:, wemp_idx] - constraint_targets["WEMP"]) / constraint_targets["WEMP"])
+                elif constraint == "DOC":
+                    doc_idx = response_names.index("DOC")
+                    cv = np.maximum(0, (responses[:, doc_idx] - constraint_targets["DOC"]) / constraint_targets["DOC"])
+                elif constraint == "ROUGH":
+                    rough_idx = response_names.index("ROUGH")
+                    cv = np.maximum(0, (responses[:, rough_idx] - constraint_targets["ROUGH"]) / constraint_targets["ROUGH"])
+                elif constraint == "WFUEL":
+                    wfuel_idx = response_names.index("WFUEL")
+                    wfuel_limit = constraint_targets["WFUEL"][variant_name]
+                    cv = np.maximum(0, (responses[:, wfuel_idx] - wfuel_limit) / wfuel_limit)
+                elif constraint == "RANGE":
+                    range_idx = response_names.index("RANGE")
+                    cv = np.maximum(0, -(responses[:, range_idx] - constraint_targets["RANGE"]) / constraint_targets["RANGE"])
+                else:
+                    raise ValueError(f"Unknown constraint: {constraint}")
+                variant_values.append(cv)
+            constraint_columns.append(np.max(variant_values, axis=0))
+        constraints = np.column_stack(constraint_columns)
 
         # Compute summed constraint violation to remain in-line with MOEA Java 
         # implementation
@@ -485,6 +530,9 @@ class GAABenchmark:
 if __name__ == "__main__":
     import time
     from GAAFpy.utils import VARIABLE_BOUNDS
+
+    # Define the degree of the response surfaces
+    RSM_degree = "quadratic"  # Options: "linear", "interaction", "quadratic"
 
     print("=" * 70)
     print("GAA benchmark problem - test input and evaluation")
@@ -499,7 +547,8 @@ if __name__ == "__main__":
                             3.708131, 0.542831])
 
     # Instantiate class and evaluate single solution
-    gaa = GAABenchmark(design_vars)
+    gaa = GAABenchmark(design_vars,
+                       degree=RSM_degree)
     objectives, constraints, summed_CV = gaa.evaluate()
 
     print("\n--- Single Solution ---")
@@ -531,7 +580,8 @@ if __name__ == "__main__":
     design_vectors = lowers + design_vectors * (uppers - lowers)
 
     # Perform batch analysis
-    gaa_batch = GAABenchmark(design_vectors)
+    gaa_batch = GAABenchmark(design_vectors,
+                             degree=RSM_degree)
     start_time = time.time()
     objectives_batch, constraints_batch, summed_CV_batch = gaa_batch.evaluate()
     vectorised_time = time.time() - start_time
@@ -550,7 +600,7 @@ if __name__ == "__main__":
     print("Sequential (10 single solutions):")
     start_time = time.time()
     for design_vec in design_vectors[:10]:
-        gaa_seq = GAABenchmark(design_vec)
+        gaa_seq = GAABenchmark(design_vec, degree=RSM_degree)
         _, _, _ = gaa_seq.evaluate()
     single_time = time.time() - start_time
     estimated_sequential = single_time * (n_solutions / 10)

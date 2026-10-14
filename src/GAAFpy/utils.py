@@ -5,19 +5,20 @@ utils.py
 
 Description
 -----------
-
 Basic utilities for the module. 
 
 Versioning
 ----------
 @author: T.S. Vermeulen
 @email: T.S.Vermeulen@tudelft.nl
-@version: 1.1
-@date (dd-mm-yyyy): 20-03-2026
+@version: 1.2
+@date (dd-mm-yyyy): 12-10-2026
 
 Changelog:
 - V1.0: Initial version.
 - V1.1: Added additional variable describing the design variable bounds
+- V1.2: Added coefficient caching. Added filtering of coefficients based on 
+        requested degree. Added error handling for missing degrees.
 """
 
 # Module Constants
@@ -30,8 +31,10 @@ import os
 import json
 from typing import Dict, Any, List
 
-# Module-level cache for RSM coefficients (loaded once, reused for all optimisations)
+# Module-level cache for RSM coefficients
 _COEFFICIENT_CACHE: Dict[str, Dict[str, Any]] = {}
+
+_RSM_DEGREE_ORDER = ["linear", "interaction", "quadratic"]
 
 # Design variable scaling parameters (shared across all scaling methods)
 # Each tuple: (parameter_name, center, scale)
@@ -56,6 +59,25 @@ CONSTRAINT_LIMITS = {
     "WFUEL": {"2-seater": 450, "4-seater": 475, "6-seater": 500},
     "RANGE": 2000,
 }
+
+CONSTRAINT_SYMBOLS = ["$L_{p_{TO}}$",
+                      "$W_{OE}$",
+                      "$DOC$",
+                      "$K_r$",
+                      "$W_{F}$",
+                      "$R$"]
+
+# Variant names
+VARIANT_NAMES = ["2-seater", "4-seater", "6-seater"]
+
+# Variable names as list
+VARIABLE_NAMES = ["CSPD2", "AR2", "SWEEP2", "DPROP2", "WINGLD2", "AF2", "SEATW2", "ELODT2", "TAPER2", 
+                  "CSPD4", "AR4", "SWEEP4", "DPROP4", "WINGLD4", "AF4", "SEATW4", "ELODT4", "TAPER4", 
+                  "CSPD6", "AR6", "SWEEP6", "DPROP6", "WINGLD6", "AF6", "SEATW6", "ELODT6", "TAPER6"]
+
+# Response variable names as list
+RESPONSE_NAMES = ["NOISE", "WEMP", "DOC", "ROUGH", "WFUEL", "PURCH", "RANGE", "LDMAX", "VCMAX"]
+
 
 # Design variable bounds (raw/unscaled values)
 VARIABLE_BOUNDS: List[List[float]] = [[0.24,  # CSPD2
@@ -118,11 +140,17 @@ VARIABLE_BOUNDS: List[List[float]] = [[0.24,  # CSPD2
 
 
 # Module Functions
-def load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
+def load_rsm_coefficients(degree: str = "quadratic") -> Dict[str, Dict[str, Any]]:
     """
     Load RSM coefficients from external JSON file.
     Results are cached module-wide to avoid repeated file I/O during
     optimisation.
+
+    Args:
+        degree (str): The highest degree of the RSM to load.
+                  Options are "linear", "interaction", or "quadratic".
+                  The returned coefficients include the requested degree and
+                  all lower-order terms.
 
     Returns:
         Dictionary of coefficients organised by variant and response variable.
@@ -134,8 +162,13 @@ def load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
 
     global _COEFFICIENT_CACHE
 
+    if degree not in _RSM_DEGREE_ORDER:
+        raise ValueError(
+            f"degree must be one of _RSM_DEGREE_ORDER, got {degree!r}"
+        )
+
     if _COEFFICIENT_CACHE:
-        return _COEFFICIENT_CACHE
+        return _filter_rsm_coefficients(_COEFFICIENT_CACHE, degree)
 
     # List of candidate locations to search
     candidates = []
@@ -156,7 +189,7 @@ def load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
             try:
                 with open(coeffs_file, 'r', encoding='utf-8') as f:
                     _COEFFICIENT_CACHE = json.load(f)
-                    return _COEFFICIENT_CACHE
+                    return _filter_rsm_coefficients(_COEFFICIENT_CACHE, degree)
             except json.JSONDecodeError as e:
                 raise json.JSONDecodeError(
                     f"Invalid JSON in {coeffs_file}: {e.msg}",
@@ -176,6 +209,42 @@ def load_rsm_coefficients() -> Dict[str, Dict[str, Any]]:
         "or run the script from the project root directory."
     )
     raise FileNotFoundError(error_msg)
+
+
+def _filter_rsm_coefficients(coefficients: Dict[str, Dict[str, Any]],
+                             degree: str) -> Dict[str, Dict[str, Any]]:
+    """Return a cumulative coefficient view up to the requested degree."""
+
+    if degree == "quadratic":
+        return json.loads(json.dumps(coefficients))
+
+    requested_degree_index = _RSM_DEGREE_ORDER.index(degree)
+    allowed_degrees = _RSM_DEGREE_ORDER[:requested_degree_index + 1]
+
+    filtered_coefficients: Dict[str, Dict[str, Any]] = {}
+    for variant_name, variant_coeffs in coefficients.items():
+        filtered_coefficients[variant_name] = {}
+        for response_name, response_coeffs in variant_coeffs.items():
+            missing_degrees = [
+                allowed_degree
+                for allowed_degree in allowed_degrees
+                if allowed_degree not in response_coeffs
+            ]
+            if missing_degrees:
+                raise ValueError(
+                    f"Requested degree '{degree}' is missing terms {missing_degrees} "
+                    f"for {variant_name}:{response_name}"
+                )
+
+            filtered_response: Dict[str, Any] = {}
+            if "constant" in response_coeffs:
+                filtered_response["constant"] = response_coeffs["constant"]
+            for allowed_degree in allowed_degrees:
+                filtered_response[allowed_degree] = response_coeffs[allowed_degree]
+
+            filtered_coefficients[variant_name][response_name] = filtered_response
+
+    return filtered_coefficients
 
 
 if __name__ == "__main__":

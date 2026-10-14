@@ -61,7 +61,7 @@ Versioning
 @author: T.S. Vermeulen
 @email: T.S.Vermeulen@tudelft.nl
 @version: 1.1.5
-@date (dd-mm-yyyy): 23-03-2026
+@date (dd-mm-yyyy): 12-10-2026
 
 Changelog:
 - V1.0: Initial version. Tested to function for both single solution and
@@ -104,7 +104,8 @@ class AircraftVariant:
 
     def __init__(self,
                  design_vars: np.ndarray,
-                 variant_index: int) -> None:
+                 variant_index: int,
+                 degree: str = "quadratic") -> None:
         """
         Initialise an aircraft variant.
 
@@ -113,6 +114,9 @@ class AircraftVariant:
                 Array of 9 design variables (raw/unscaled values)
             variant_index: int,
                 Index for the variant (0 for 2-seater, 1 for 4-seater, 2 for 6-seater)
+            degree: str
+                Highest polynomial degree to use when loading coefficients.
+                Options are "linear", "interaction", and "quadratic".
         """
 
         # Validate variant index and set the variant name
@@ -120,6 +124,7 @@ class AircraftVariant:
             raise ValueError(f"Invalid variant index {variant_index}. "
                              f"Must be 0, 1, or 2.")
         self.name = self.VARIANT_NAMES[variant_index]
+        self.degree = degree
     
         # Validate design variables and reshape if needed
         design_vars = np.asarray(design_vars, dtype=float)
@@ -269,7 +274,7 @@ class AircraftVariant:
         """
 
         # Load coefficients from external file (cached at module level)
-        all_coefficients = load_rsm_coefficients()
+        all_coefficients = load_rsm_coefficients(degree=self.degree)
 
         if self.name not in all_coefficients:
             raise ValueError(

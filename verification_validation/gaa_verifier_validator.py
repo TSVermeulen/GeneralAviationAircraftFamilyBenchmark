@@ -9,9 +9,11 @@ Verification & Validation script for the Python implementation of the
 General Aviation Aircraft (GAA) Benchmark Problem.
 
 Module requires a CSV input file containing design vectors and their objective
-and constraint values to compare against. This file can be constructed using
-output data from e.g. the MOEA RealWorldBenchmark problem Java GAA
-implementation.
+and constraint values to compare against. Constraint columns may be supplied
+as the legacy per-variant ``Constr1``-``Constr18`` layout, the aggregated
+``Constr1``-``Constr6`` layout, or a single summed-CV ``Constr1`` column.
+This file can be constructed using output data from e.g. the MOEA
+RealWorldBenchmark problem Java GAA implementation.
 
 Classes
 -------
@@ -27,20 +29,21 @@ Examples
 
 References
 ----------
-    [1] Zatarain Salazar, J., Hadka, D., Reed, P., Seada, H., and Deb, K.
-            (2024). Diagnostic benchmarking of many-objective evolutionary
-            algorithms for real-world problems. Engineering Optimization,
-            1-22. https://doi.org/10.1080/0305215X.2024.2381818.
+[1] Zatarain Salazar, J., Hadka, D., Reed, P., Seada, H., and Deb, K.
+    (2024). Diagnostic benchmarking of many-objective evolutionary
+    algorithms for real-world problems. Engineering Optimization,
+    1-22. https://doi.org/10.1080/0305215X.2024.2381818.
 
 Versioning
 ----------
 @author: T.S. Vermeulen
 @email: T.S.Vermeulen@tudelft.nl
-@version: 1.0
-@date (dd-mm-yyyy): 19-03-2026
+@version: 1.1
+@date (dd-mm-yyyy): 12-10-2026
 
 Changelog:
 - V1.0: Initial version.
+- V1.1: Updated to support new refactored GAAFpy formulation.
 """
 
 # Import standard libraries
@@ -61,11 +64,11 @@ __status__ = "Release"
 
 def add_src_to_path():
     """
-    Add the project 'src' directory to sys.path so top-level package 
+    Add the project 'src' directory to sys.path so top-level package
     'GAAFPy' is importable.
     This keeps imports identical to how they work after installation.
     """
-    
+
     # This file is in: project_root/verification_validation/gaa_verifier_validator.py
     project_root = Path(__file__).resolve().parents[1]  # go up to project root
     src_dir = project_root / "src"
@@ -102,10 +105,11 @@ DESIGN_VAR_NAMES = ["CSPD2", "AR2", "SWEEP2", "DPROP2", "WINGLD2", "AF2",
                     "CSPD6", "AR6", "SWEEP6", "DPROP6", "WINGLD6", "AF6",
                     "SEATW6", "ELODT6", "TAPER6"]
 
-# Expected number of design variables and objectives
+# Expected number of design variables, objectives, and aggregated constraints
 N_DESIGN_VARS = 27
 N_OBJECTIVES = 10
-N_CONSTRAINTS = 18
+N_CONSTRAINTS = 6
+N_VARIANTS = 3
 
 # Set these paths to run validation
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -160,18 +164,10 @@ class GAA_Validator:
                 for j, obj_name in enumerate(OBJECTIVE_NAMES):
                     self.reference_objectives[i, j] = float(row[obj_name])
 
-            # Extract constraints (starting from column 37: Constr1, Constr2, ...)
-            # Note: CSV should have Constr1 through Constr18
-            self.reference_constraints = np.zeros((self.n_solutions, N_CONSTRAINTS))
-            missing_constraints = False
-            for i, row in enumerate(rows):
-                for j in range(N_CONSTRAINTS):
-                    constr_name = f"Constr{j+1}"
-                    if constr_name in row:
-                        self.reference_constraints[i, j] = float(row[constr_name])
-                    elif i == 0 and not missing_constraints:  # Only print warning once
-                        missing_constraints = True
-                        print(f"Warning: Missing at least Column '{constr_name}' in CSV!")
+            # Extract constraints (column 37)
+            self.reference_constraints = np.array(
+                [[float(row["Constr1"])] for row in rows], dtype=float)
+            self.constraint_names = ["Constr1 (summed CV)"]
 
             print(f"Loaded CSV with {self.n_solutions} solutions")
             print(f"Design variables: {self.design_variables.shape}")
@@ -199,8 +195,8 @@ class GAA_Validator:
             # Ensure GAABenchmark is imported before creating instance
             _ensure_imports()
             gaa = GAABenchmark(self.design_variables)  # type: ignore
-            (self.python_objectives, 
-             self.python_constraints, 
+            (self.python_objectives,
+             self.python_constraints,
              self.python_summed_cv) = gaa.evaluate()
 
             print(f"Python objectives: {self.python_objectives.shape}")
@@ -225,10 +221,12 @@ class GAA_Validator:
                              self.reference_objectives,
                              where=self.reference_objectives!=0,
                              out=np.abs(self.python_objectives - self.reference_objectives))
-        con_diff = np.divide(self.python_constraints - self.reference_constraints,
+        python_constraints = self.python_summed_cv[:, np.newaxis]
+
+        con_diff = np.divide(python_constraints - self.reference_constraints,
                              self.reference_constraints,
-                             where=self.reference_constraints!=0,
-                             out=np.abs(self.python_constraints - self.reference_constraints))
+                             where=self.reference_constraints != 0,
+                             out=np.abs(python_constraints - self.reference_constraints))
 
         return {"objectives_diff": obj_diff,
                 "objectives_abs_diff": np.abs(obj_diff),
@@ -280,7 +278,6 @@ class GAA_Validator:
         report.append("SUMMARY")
         report.append("-" * 80)
         report.append(f"Total solutions evaluated: {self.n_solutions}")
-        report.append(f"CSV file: {self.csv_path}")
         report.append("")
 
         report.append("OBJECTIVES VALIDATION")
@@ -320,13 +317,13 @@ class GAA_Validator:
         # Detailed constraint statistics
         report.append("CONSTRAINTS - DETAILED STATISTICS")
         report.append("-" * 80)
-        for i in range(N_CONSTRAINTS):
+        for i, constraint_name in enumerate(self.constraint_names):
             max_diff = np.max(con_diff[:, i])
             mean_diff = np.mean(con_diff[:, i])
             violations = np.sum(con_diff[:, i] > con_tolerance)
             status = "OK" if max_diff < con_tolerance else "X "
             report.append(
-                f"{status} Constr{i+1:2} | "
+                f"{status} {constraint_name:20} | "
                 f"Max: {max_diff:.2e} | "
                 f"Mean: {mean_diff:.2e} | "
                 f"Violations: {violations}/{self.n_solutions}"
